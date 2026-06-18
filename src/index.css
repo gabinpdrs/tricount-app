@@ -106,6 +106,14 @@ h1, h2, h3 { margin: 0 0 10px; }
 }
 .toggle button.actif { background: var(--primary); color: #fff; border-color: var(--primary); }
 
+/* Case "aussi dans collectif" */
+.case-collectif {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 0 0; font-size: 14px; color: var(--text); font-weight: 600;
+  cursor: pointer;
+}
+.case-collectif input { width: auto; accent-color: var(--primary); }
+
 /* Liste de courses */
 .article-ligne {
   display: flex; align-items: center; gap: 10px;
