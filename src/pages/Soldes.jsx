@@ -4,17 +4,17 @@ import { useAuth } from '../context/AuthContext'
 import { calculerSoldes, calculerRemboursements, euros } from '../lib/soldes'
 
 export default function Soldes() {
-  const { profil, deconnexion } = useAuth()
+  const { session, profil, deconnexion, rafraichirProfil } = useAuth()
   const [membres, setMembres] = useState([])
   const [soldes, setSoldes] = useState({})
   const [remboursements, setRemboursements] = useState([])
   const [total, setTotal] = useState(0)
   const [chargement, setChargement] = useState(true)
+  const [photoMsg, setPhotoMsg] = useState('')
 
   async function charger() {
     setChargement(true)
-
-    const { data: profils } = await supabase.from('profiles').select('id, prenom')
+    const { data: profils } = await supabase.from('profiles').select('id, prenom, photo_url')
     const { data: deps } = await supabase
       .from('depenses')
       .select('id, montant, payeur_id, depense_partages(user_id)')
@@ -36,23 +36,57 @@ export default function Soldes() {
 
   useEffect(() => { charger() }, [])
 
+  // Envoi d'une photo de profil
+  async function onPhoto(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoMsg('Envoi de la photo...')
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+    const chemin = `${session.user.id}.${ext}`
+
+    const { error: upErr } = await supabase.storage
+      .from('avatars')
+      .upload(chemin, file, { upsert: true, contentType: file.type })
+    if (upErr) { setPhotoMsg('Erreur : ' + upErr.message); return }
+
+    const { data } = supabase.storage.from('avatars').getPublicUrl(chemin)
+    const url = `${data.publicUrl}?t=${Date.now()}`
+
+    const { error: rpcErr } = await supabase.rpc('set_photo', { p_url: url })
+    if (rpcErr) { setPhotoMsg('Erreur : ' + rpcErr.message); return }
+
+    await rafraichirProfil()
+    await charger()
+    setPhotoMsg('✅ Photo mise à jour !')
+  }
+
   const monSolde = profil ? (soldes[profil.id] ?? 0) : 0
+  const initiale = (nom) => (nom ? nom.charAt(0).toUpperCase() : '?')
 
   return (
     <div className="container">
       <header className="app-header">
-        <div>
-          <h1>💰 Soldes</h1>
-          <p>Salut {profil?.prenom} 👋</p>
+        <div className="header-user">
+          <label className="header-avatar" title="Changer ma photo">
+            {profil?.photo_url
+              ? <img className="avatar-img" src={profil.photo_url} alt="moi" />
+              : initiale(profil?.prenom)}
+            <input type="file" accept="image/*" onChange={onPhoto} style={{ display: 'none' }} />
+          </label>
+          <div>
+            <h1>💰 Soldes</h1>
+            <p>Salut {profil?.prenom} 👋</p>
+          </div>
         </div>
         <button className="btn-deco" onClick={deconnexion}>Déco</button>
       </header>
+
+      {photoMsg && <p className="message-succes">{photoMsg}</p>}
 
       {chargement ? (
         <p className="muted">Chargement...</p>
       ) : (
         <>
-          {/* Mon solde en grand */}
           <div className={`card solde-perso ${monSolde < -0.009 ? 'negatif' : monSolde > 0.009 ? 'positif' : ''}`}>
             {monSolde > 0.009 ? (
               <>On te doit<br /><span className="gros">{euros(monSolde)}</span></>
@@ -63,7 +97,10 @@ export default function Soldes() {
             )}
           </div>
 
-          {/* Remboursements suggérés */}
+          <p className="muted" style={{ textAlign: 'center' }}>
+            👆 Touche ta photo en haut à gauche pour la changer
+          </p>
+
           <div className="section-titre">🔁 Qui rembourse qui</div>
           <div className="card">
             {remboursements.length === 0 ? (
@@ -78,14 +115,20 @@ export default function Soldes() {
             )}
           </div>
 
-          {/* Détail des soldes */}
           <div className="section-titre">📊 Détail par personne</div>
           <div className="card">
             {membres.map((m) => {
               const v = soldes[m.id] ?? 0
               return (
                 <div className="solde-ligne" key={m.id}>
-                  <span>{m.prenom}{m.id === profil?.id && <span className="badge-toi">toi</span>}</span>
+                  <span className="solde-gauche">
+                    <span className="mini-avatar">
+                      {m.photo_url
+                        ? <img className="avatar-img" src={m.photo_url} alt={m.prenom} />
+                        : initiale(m.prenom)}
+                    </span>
+                    {m.prenom}{m.id === profil?.id && <span className="badge-toi">toi</span>}
+                  </span>
                   <span className={v < -0.009 ? 'rouge' : v > 0.009 ? 'vert' : 'muted'}>
                     {v > 0.009 ? '+' : ''}{euros(v)}
                   </span>
