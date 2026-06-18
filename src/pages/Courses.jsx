@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext'
 
 export default function Courses() {
   const { session } = useAuth()
-  const [vue, setVue] = useState('collectif') // 'collectif' ou 'perso'
+  const [vue, setVue] = useState('collectif')         // liste affichée
+  const [destination, setDestination] = useState('collectif') // où ajouter l'article
   const [articles, setArticles] = useState([])
   const [chargement, setChargement] = useState(true)
   const [nom, setNom] = useState('')
@@ -27,6 +28,9 @@ export default function Courses() {
 
   useEffect(() => { charger() }, [vue])
 
+  // Quand on change de liste affichée, on aligne la destination par défaut dessus
+  useEffect(() => { setDestination(vue) }, [vue])
+
   async function ajouter(e) {
     e.preventDefault()
     setMessage(null)
@@ -34,11 +38,14 @@ export default function Courses() {
     const qte = parseInt(quantite, 10) || 1
 
     const { error } = await supabase.from('articles').insert({
-      nom: nom.trim(), quantite: qte, portee: vue, ajoute_par: session.user.id,
+      nom: nom.trim(), quantite: qte, portee: destination, ajoute_par: session.user.id,
     })
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
     setNom(''); setQuantite(1)
-    await charger()
+
+    // On affiche la liste où l'article a été ajouté
+    if (destination !== vue) setVue(destination)
+    else await charger()
   }
 
   async function basculerAchete(a) {
@@ -58,7 +65,7 @@ export default function Courses() {
         <div><h1>🛒 Courses</h1><p>Avant de partir au camping</p></div>
       </header>
 
-      {/* Choix de la liste : collective ou perso */}
+      {/* Choix de la liste affichée */}
       <div className="toggle">
         <button className={vue === 'collectif' ? 'actif' : ''} onClick={() => setVue('collectif')}>🛒 Liste collective</button>
         <button className={vue === 'perso' ? 'actif' : ''} onClick={() => setVue('perso')}>👤 Ma liste</button>
@@ -66,7 +73,7 @@ export default function Courses() {
 
       {/* Ajouter un article */}
       <div className="card">
-        <h3>➕ Ajouter {vue === 'perso' ? 'à ma liste' : 'à la liste collective'}</h3>
+        <h3>➕ Ajouter un article</h3>
         <form onSubmit={ajouter}>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}>
@@ -78,6 +85,13 @@ export default function Courses() {
               <input type="number" min="1" value={quantite} onChange={(e) => setQuantite(e.target.value)} />
             </div>
           </div>
+
+          <label>Ajouter dans...</label>
+          <div className="toggle" style={{ marginBottom: 0 }}>
+            <button type="button" className={destination === 'collectif' ? 'actif' : ''} onClick={() => setDestination('collectif')}>🛒 Liste collective</button>
+            <button type="button" className={destination === 'perso' ? 'actif' : ''} onClick={() => setDestination('perso')}>👤 Ma liste</button>
+          </div>
+
           {message && <p className={message.type === 'erreur' ? 'message-erreur' : 'message-succes'}>{message.texte}</p>}
           <button type="submit">Ajouter</button>
         </form>
