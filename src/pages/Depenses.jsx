@@ -14,6 +14,8 @@ export default function Depenses() {
   const [montant, setMontant] = useState('')
   const [payeur, setPayeur] = useState('')
   const [equipesChoisies, setEquipesChoisies] = useState([]) // noms d'équipes cochées
+  const [ticketFile, setTicketFile] = useState(null)
+  const [resetTicket, setResetTicket] = useState(0)
   const [message, setMessage] = useState(null)
 
   async function charger() {
@@ -61,11 +63,22 @@ export default function Depenses() {
       .filter((eq) => equipesChoisies.includes(eq.nom))
       .flatMap((eq) => eq.membres)
 
+    // Photo du ticket de caisse (facultative)
+    let ticketUrl = null
+    if (ticketFile) {
+      const ext = (ticketFile.name.split('.').pop() || 'jpg').toLowerCase()
+      const chemin = `${profil.id}-${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('tickets')
+        .upload(chemin, ticketFile, { upsert: true, contentType: ticketFile.type })
+      if (upErr) { setMessage({ type: 'erreur', texte: 'Photo : ' + upErr.message }); return }
+      ticketUrl = supabase.storage.from('tickets').getPublicUrl(chemin).data.publicUrl
+    }
+
     const { error } = await supabase.rpc('ajouter_depense', {
-      p_titre: titre.trim(), p_montant: m, p_payeur: payeur, p_participants: participants,
+      p_titre: titre.trim(), p_montant: m, p_payeur: payeur, p_participants: participants, p_ticket_url: ticketUrl,
     })
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
-    setTitre(''); setMontant('')
+    setTitre(''); setMontant(''); setTicketFile(null); setResetTicket((n) => n + 1)
     setMessage({ type: 'succes', texte: '✅ Dépense ajoutée !' })
     await charger()
   }
@@ -118,6 +131,9 @@ export default function Depenses() {
               </label>
             ))}
           </div>
+
+          <label>📸 Photo du ticket de caisse (facultatif)</label>
+          <input key={resetTicket} type="file" accept="image/*" onChange={(e) => setTicketFile(e.target.files?.[0] ?? null)} />
 
           {message && <p className={message.type === 'erreur' ? 'message-erreur' : 'message-succes'}>{message.texte}</p>}
           <button type="submit">Ajouter la dépense</button>
