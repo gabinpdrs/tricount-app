@@ -4,84 +4,50 @@ import { useAuth } from '../context/AuthContext'
 
 export default function Courses() {
   const { session } = useAuth()
-  const [listes, setListes] = useState([])
-  const [listeId, setListeId] = useState(null)
+  const [vue, setVue] = useState('collectif') // 'collectif' ou 'perso'
   const [articles, setArticles] = useState([])
   const [chargement, setChargement] = useState(true)
-
   const [nom, setNom] = useState('')
   const [quantite, setQuantite] = useState(1)
-  const [nouvelleListe, setNouvelleListe] = useState('')
   const [message, setMessage] = useState(null)
 
-  async function chargerListes() {
-    const { data } = await supabase.from('listes_courses').select('id, nom').order('created_at')
-    setListes(data ?? [])
-    return data ?? []
-  }
-
-  async function chargerArticles(id) {
-    if (!id) { setArticles([]); return }
-    const { data } = await supabase
+  async function charger() {
+    setChargement(true)
+    let requete = supabase
       .from('articles')
-      .select('id, nom, quantite, achete, ajoute_par, profiles:ajoute_par(prenom)')
-      .eq('liste_id', id)
+      .select('id, nom, quantite, achete, ajoute_par, portee, profiles:ajoute_par(prenom)')
+      .eq('portee', vue)
       .order('created_at', { ascending: true })
+    if (vue === 'perso') requete = requete.eq('ajoute_par', session.user.id)
+
+    const { data } = await requete
     setArticles(data ?? [])
+    setChargement(false)
   }
 
-  useEffect(() => {
-    (async () => {
-      setChargement(true)
-      const ls = await chargerListes()
-      const premier = ls[0]?.id ?? null
-      setListeId(premier)
-      await chargerArticles(premier)
-      setChargement(false)
-    })()
-  }, [])
+  useEffect(() => { charger() }, [vue])
 
-  // Recharge les articles quand on change de liste
-  useEffect(() => { chargerArticles(listeId) }, [listeId])
-
-  async function ajouterArticle(e) {
+  async function ajouter(e) {
     e.preventDefault()
     setMessage(null)
-    if (!listeId) { setMessage({ type: 'erreur', texte: 'Choisis ou crée une liste.' }); return }
     if (!nom.trim()) { setMessage({ type: 'erreur', texte: 'Mets le nom d\'un article.' }); return }
-    const q = parseInt(quantite, 10) || 1
+    const qte = parseInt(quantite, 10) || 1
 
     const { error } = await supabase.from('articles').insert({
-      liste_id: listeId, nom: nom.trim(), quantite: q, ajoute_par: session.user.id,
+      nom: nom.trim(), quantite: qte, portee: vue, ajoute_par: session.user.id,
     })
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
     setNom(''); setQuantite(1)
-    await chargerArticles(listeId)
+    await charger()
   }
 
   async function basculerAchete(a) {
     await supabase.from('articles').update({ achete: !a.achete }).eq('id', a.id)
-    await chargerArticles(listeId)
+    await charger()
   }
-
-  async function supprimerArticle(id) {
+  async function supprimer(id) {
     await supabase.from('articles').delete().eq('id', id)
-    await chargerArticles(listeId)
-  }
-
-  async function creerListe(e) {
-    e.preventDefault()
-    setMessage(null)
-    if (!nouvelleListe.trim()) return
-    const { data, error } = await supabase
-      .from('listes_courses')
-      .insert({ nom: nouvelleListe.trim(), created_by: session.user.id })
-      .select()
-      .single()
-    if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
-    setNouvelleListe('')
-    await chargerListes()
-    setListeId(data.id)
+    await charger()
   }
 
   const restants = articles.filter((a) => !a.achete).length
@@ -89,30 +55,19 @@ export default function Courses() {
   return (
     <div className="container">
       <header className="app-header">
-        <div><h1>🛒 Courses</h1><p>Liste collective avant de partir</p></div>
+        <div><h1>🛒 Courses</h1><p>Avant de partir au camping</p></div>
       </header>
 
-      {/* Choix de la liste */}
-      <div className="card">
-        <label>Liste affichée</label>
-        <select value={listeId ?? ''} onChange={(e) => setListeId(Number(e.target.value))}>
-          {listes.length === 0 && <option value="">— aucune liste —</option>}
-          {listes.map((l) => <option key={l.id} value={l.id}>{l.nom}</option>)}
-        </select>
-
-        <form onSubmit={creerListe}>
-          <label>Créer une nouvelle liste</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input value={nouvelleListe} onChange={(e) => setNouvelleListe(e.target.value)} placeholder="Ex : Camping, Apéro..." />
-            <button type="submit" style={{ width: 'auto', marginTop: 0, padding: '12px 16px' }}>+</button>
-          </div>
-        </form>
+      {/* Choix de la liste : collective ou perso */}
+      <div className="toggle">
+        <button className={vue === 'collectif' ? 'actif' : ''} onClick={() => setVue('collectif')}>🛒 Liste collective</button>
+        <button className={vue === 'perso' ? 'actif' : ''} onClick={() => setVue('perso')}>👤 Ma liste</button>
       </div>
 
       {/* Ajouter un article */}
       <div className="card">
-        <h3>➕ Ajouter un article</h3>
-        <form onSubmit={ajouterArticle}>
+        <h3>➕ Ajouter {vue === 'perso' ? 'à ma liste' : 'à la liste collective'}</h3>
+        <form onSubmit={ajouter}>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}>
               <label>Article</label>
@@ -124,12 +79,15 @@ export default function Courses() {
             </div>
           </div>
           {message && <p className={message.type === 'erreur' ? 'message-erreur' : 'message-succes'}>{message.texte}</p>}
-          <button type="submit">Ajouter à la liste</button>
+          <button type="submit">Ajouter</button>
         </form>
       </div>
 
-      {/* La liste collective */}
-      <div className="section-titre">📋 La liste {restants > 0 && <span className="muted" style={{ fontWeight: 400 }}>({restants} à acheter)</span>}</div>
+      {/* La liste */}
+      <div className="section-titre">
+        {vue === 'perso' ? '👤 Ma liste' : '🛒 Liste collective'}
+        {restants > 0 && <span className="muted" style={{ fontWeight: 400 }}>&nbsp;({restants} à acheter)</span>}
+      </div>
       <div className="card">
         {chargement ? (
           <p className="muted">Chargement...</p>
@@ -142,10 +100,14 @@ export default function Courses() {
               <span className="article-qte">{a.quantite}×</span>
               <span className="article-info">
                 <span className="article-nom">{a.nom}</span>
-                <br />
-                <span className="muted" style={{ fontSize: 12 }}>ajouté par {a.profiles?.prenom ?? '?'}</span>
+                {vue === 'collectif' && (
+                  <>
+                    <br />
+                    <span className="muted" style={{ fontSize: 12 }}>ajouté par {a.profiles?.prenom ?? '?'}</span>
+                  </>
+                )}
               </span>
-              <button className="lien-suppr" onClick={() => supprimerArticle(a.id)}>✕</button>
+              <button className="lien-suppr" onClick={() => supprimer(a.id)}>✕</button>
             </div>
           ))
         )}

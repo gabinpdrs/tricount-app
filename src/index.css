@@ -98,6 +98,14 @@ h1, h2, h3 { margin: 0 0 10px; }
 .lien-suppr { width: auto; margin: 10px 0 0; padding: 0; background: none; color: var(--rouge); font-size: 13px; font-weight: 600; }
 .lien-suppr:hover { filter: none; text-decoration: underline; }
 
+/* Choix liste collective / perso */
+.toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+.toggle button {
+  flex: 1; margin: 0; padding: 12px 6px; font-size: 14px;
+  background: #fff; color: var(--muted); border: 1.5px solid var(--border);
+}
+.toggle button.actif { background: var(--primary); color: #fff; border-color: var(--primary); }
+
 /* Liste de courses */
 .article-ligne {
   display: flex; align-items: center; gap: 10px;
