@@ -98,6 +98,23 @@ h1, h2, h3 { margin: 0 0 10px; }
 .lien-suppr { width: auto; margin: 10px 0 0; padding: 0; background: none; color: var(--rouge); font-size: 13px; font-weight: 600; }
 .lien-suppr:hover { filter: none; text-decoration: underline; }
 
+/* Bouton "C'est moi qui l'achète" */
+.btn-pris {
+  width: auto; margin: 0; padding: 6px 10px; font-size: 12px; font-weight: 700;
+  background: #fff; color: var(--primary); border: 1.5px solid var(--primary);
+  border-radius: 999px; white-space: nowrap;
+}
+.btn-pris.actif { background: var(--primary); color: #fff; }
+
+/* Vignette du ticket de caisse */
+.ticket-lien {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
+  color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none;
+}
+.ticket-vignette {
+  width: 44px; height: 44px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);
+}
+
 /* Choix liste collective / perso */
 .toggle { display: flex; gap: 8px; margin-bottom: 14px; }
 .toggle button {

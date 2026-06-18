@@ -4,8 +4,6 @@ import { useAuth } from '../context/AuthContext'
 
 export default function Courses() {
   const { session, profil } = useAuth()
-  const restreint = !!profil?.peut_seulement_cocher // Lucile : peut seulement cocher
-
   const [vue, setVue] = useState('collectif')
   const [aussiCollectif, setAussiCollectif] = useState(false)
   const [articles, setArticles] = useState([])
@@ -14,38 +12,37 @@ export default function Courses() {
   const [quantite, setQuantite] = useState(1)
   const [message, setMessage] = useState(null)
 
-  // Lucile ne voit que la liste collective
-  const vueActive = restreint ? 'collectif' : vue
+  // Validation d'achat (ticket)
+  const [titreAchat, setTitreAchat] = useState('')
+  const [montant, setMontant] = useState('')
+  const [ticketFile, setTicketFile] = useState(null)
+  const [msgAchat, setMsgAchat] = useState(null)
 
   async function charger() {
     setChargement(true)
     let requete = supabase
       .from('articles')
-      .select('id, nom, quantite, achete, ajoute_par, portee, profiles:ajoute_par(prenom)')
-      .eq('portee', vueActive)
+      .select('id, nom, quantite, achete, ajoute_par, pris_par, portee, ajouteur:ajoute_par(prenom), acheteur:pris_par(prenom)')
+      .eq('portee', vue)
       .order('created_at', { ascending: true })
-    if (vueActive === 'perso') requete = requete.eq('ajoute_par', session.user.id)
+    if (vue === 'perso') requete = requete.eq('ajoute_par', session.user.id)
 
     const { data } = await requete
     setArticles(data ?? [])
     setChargement(false)
   }
 
-  useEffect(() => { charger() }, [vueActive])
+  useEffect(() => { charger() }, [vue])
 
   async function ajouter(e) {
     e.preventDefault()
     setMessage(null)
     if (!nom.trim()) { setMessage({ type: 'erreur', texte: 'Mets le nom d\'un article.' }); return }
     const qte = parseInt(quantite, 10) || 1
-
-    // L'article va dans la liste actuellement affichée
     const lignes = [{ nom: nom.trim(), quantite: qte, portee: vue, ajoute_par: session.user.id }]
-    // Si on est dans "Ma liste" et que la case est cochée -> aussi dans le collectif
     if (vue === 'perso' && aussiCollectif) {
       lignes.push({ nom: nom.trim(), quantite: qte, portee: 'collectif', ajoute_par: session.user.id })
     }
-
     const { error } = await supabase.from('articles').insert(lignes)
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
     setNom(''); setQuantite(1); setAussiCollectif(false)
@@ -61,85 +58,148 @@ export default function Courses() {
     await charger()
   }
 
-  const restants = articles.filter((a) => !a.achete).length
+  // "C'est moi qui l'achète" / annuler
+  async function prendre(a) {
+    await supabase.from('articles').update({ pris_par: session.user.id }).eq('id', a.id)
+    await charger()
+  }
+  async function annulerPrise(a) {
+    await supabase.from('articles').update({ pris_par: null }).eq('id', a.id)
+    await charger()
+  }
+
+  // Valider l'achat : crée une dépense partagée avec le ticket
+  async function validerAchat(e) {
+    e.preventDefault()
+    setMsgAchat(null)
+    const m = parseFloat(String(montant).replace(',', '.'))
+    if (Number.isNaN(m) || m <= 0) { setMsgAchat({ type: 'erreur', texte: 'Montant invalide.' }); return }
+
+    let ticketUrl = null
+    if (ticketFile) {
+      const ext = (ticketFile.name.split('.').pop() || 'jpg').toLowerCase()
+      const chemin = `${session.user.id}-${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('tickets')
+        .upload(chemin, ticketFile, { upsert: true, contentType: ticketFile.type })
+      if (upErr) { setMsgAchat({ type: 'erreur', texte: 'Photo : ' + upErr.message }); return }
+      ticketUrl = supabase.storage.from('tickets').getPublicUrl(chemin).data.publicUrl
+    }
+
+    const { error } = await supabase.rpc('valider_achat', {
+      p_titre: titreAchat.trim(), p_montant: m, p_ticket_url: ticketUrl,
+    })
+    if (error) { setMsgAchat({ type: 'erreur', texte: error.message }); return }
+
+    setTitreAchat(''); setMontant(''); setTicketFile(null)
+    setMsgAchat({ type: 'succes', texte: '✅ Achat validé ! Ajouté aux dépenses partagées.' })
+    await charger()
+  }
+
+  const mesPris = articles.filter((a) => a.pris_par === session.user.id && !a.achete).length
 
   return (
     <div className="container">
       <header className="app-header">
-        <div>
-          <h1>🛒 Courses</h1>
-          <p>{restreint ? 'Coche les articles achetés' : 'Avant de partir au camping'}</p>
-        </div>
+        <div><h1>🛒 Courses</h1><p>Salut {profil?.prenom} 👋</p></div>
       </header>
 
-      {/* Choix de la liste affichée (caché pour Lucile) */}
-      {!restreint && (
-        <div className="toggle">
-          <button className={vue === 'collectif' ? 'actif' : ''} onClick={() => setVue('collectif')}>🛒 Liste collective</button>
-          <button className={vue === 'perso' ? 'actif' : ''} onClick={() => setVue('perso')}>👤 Ma liste</button>
-        </div>
-      )}
+      <div className="toggle">
+        <button className={vue === 'collectif' ? 'actif' : ''} onClick={() => setVue('collectif')}>🛒 Liste collective</button>
+        <button className={vue === 'perso' ? 'actif' : ''} onClick={() => setVue('perso')}>👤 Ma liste</button>
+      </div>
 
-      {/* Formulaire d'ajout (caché pour Lucile) */}
-      {!restreint && (
-        <div className="card">
-          <h3>➕ Ajouter un article</h3>
-          <form onSubmit={ajouter}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <label>Article</label>
-                <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex : Chips, Eau..." />
-              </div>
-              <div style={{ width: 90 }}>
-                <label>Quantité</label>
-                <input type="number" min="1" value={quantite} onChange={(e) => setQuantite(e.target.value)} />
-              </div>
+      {/* Ajouter un article */}
+      <div className="card">
+        <h3>➕ Ajouter un article</h3>
+        <form onSubmit={ajouter}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <label>Article</label>
+              <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex : Chips, Eau..." />
             </div>
-
-            {/* La case demandée : visible seulement dans "Ma liste" */}
-            {vue === 'perso' && (
-              <label className="case-collectif">
-                <input type="checkbox" checked={aussiCollectif} onChange={(e) => setAussiCollectif(e.target.checked)} />
-                Aussi dans la liste collective
-              </label>
-            )}
-
-            {message && <p className={message.type === 'erreur' ? 'message-erreur' : 'message-succes'}>{message.texte}</p>}
-            <button type="submit">Ajouter</button>
-          </form>
-        </div>
-      )}
+            <div style={{ width: 90 }}>
+              <label>Quantité</label>
+              <input type="number" min="1" value={quantite} onChange={(e) => setQuantite(e.target.value)} />
+            </div>
+          </div>
+          {vue === 'perso' && (
+            <label className="case-collectif">
+              <input type="checkbox" checked={aussiCollectif} onChange={(e) => setAussiCollectif(e.target.checked)} />
+              Aussi dans la liste collective
+            </label>
+          )}
+          {message && <p className={message.type === 'erreur' ? 'message-erreur' : 'message-succes'}>{message.texte}</p>}
+          <button type="submit">Ajouter</button>
+        </form>
+      </div>
 
       {/* La liste */}
-      <div className="section-titre">
-        {vueActive === 'perso' ? '👤 Ma liste' : '🛒 Liste collective'}
-        {restants > 0 && <span className="muted" style={{ fontWeight: 400 }}>&nbsp;({restants} à acheter)</span>}
-      </div>
+      <div className="section-titre">{vue === 'perso' ? '👤 Ma liste' : '🛒 Liste collective'}</div>
       <div className="card">
         {chargement ? (
           <p className="muted">Chargement...</p>
         ) : articles.length === 0 ? (
           <p className="muted">Liste vide.</p>
         ) : (
-          articles.map((a) => (
-            <div className={`article-ligne ${a.achete ? 'fait' : ''}`} key={a.id}>
-              <input type="checkbox" className="article-check" checked={a.achete} onChange={() => basculerAchete(a)} />
-              <span className="article-qte">{a.quantite}×</span>
-              <span className="article-info">
-                <span className="article-nom">{a.nom}</span>
-                {vueActive === 'collectif' && (
-                  <>
-                    <br />
-                    <span className="muted" style={{ fontSize: 12 }}>ajouté par {a.profiles?.prenom ?? '?'}</span>
-                  </>
+          articles.map((a) => {
+            const prisParMoi = a.pris_par === session.user.id
+            return (
+              <div className={`article-ligne ${a.achete ? 'fait' : ''}`} key={a.id}>
+                <input type="checkbox" className="article-check" checked={a.achete} onChange={() => basculerAchete(a)} />
+                <span className="article-qte">{a.quantite}×</span>
+                <span className="article-info">
+                  <span className="article-nom">{a.nom}</span>
+                  {vue === 'collectif' && (
+                    <>
+                      <br />
+                      <span className="muted" style={{ fontSize: 12 }}>
+                        ajouté par {a.ajouteur?.prenom ?? '?'}
+                        {a.pris_par && !prisParMoi && <> · 🛒 pris par {a.acheteur?.prenom}</>}
+                      </span>
+                    </>
+                  )}
+                </span>
+
+                {/* Bouton "C'est moi qui l'achète" (liste collective, non acheté) */}
+                {vue === 'collectif' && !a.achete && (
+                  prisParMoi
+                    ? <button className="btn-pris actif" onClick={() => annulerPrise(a)}>✓ Moi</button>
+                    : !a.pris_par && <button className="btn-pris" onClick={() => prendre(a)}>C'est moi</button>
                 )}
-              </span>
-              {/* Lucile ne peut pas supprimer, seulement cocher */}
-              {!restreint && <button className="lien-suppr" onClick={() => supprimer(a.id)}>✕</button>}
-            </div>
-          ))
+
+                <button className="lien-suppr" onClick={() => supprimer(a.id)}>✕</button>
+              </div>
+            )
+          })
         )}
       </div>
+
+      {/* Valider mon achat (avec ticket) */}
+      {vue === 'collectif' && (
+        <>
+          <div className="section-titre">💸 Valider mon achat</div>
+          <div className="card">
+            <p className="muted" style={{ marginTop: 0 }}>
+              Tu as pris en charge <strong>{mesPris}</strong> article(s). Mets le montant + la photo du
+              ticket : ça crée une dépense partagée entre toutes les familles.
+            </p>
+            <form onSubmit={validerAchat}>
+              <label>Intitulé (facultatif)</label>
+              <input value={titreAchat} onChange={(e) => setTitreAchat(e.target.value)} placeholder="Ex : Courses Carrefour" />
+
+              <label>Montant total (€)</label>
+              <input type="number" step="0.01" min="0" value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="0,00" />
+
+              <label>Photo du ticket de caisse</label>
+              <input type="file" accept="image/*" onChange={(e) => setTicketFile(e.target.files?.[0] ?? null)} />
+
+              {msgAchat && <p className={msgAchat.type === 'erreur' ? 'message-erreur' : 'message-succes'}>{msgAchat.texte}</p>}
+              <button type="submit">Valider et ajouter aux dépenses</button>
+            </form>
+          </div>
+        </>
+      )}
     </div>
   )
 }

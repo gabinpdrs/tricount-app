@@ -21,7 +21,7 @@ export default function Depenses() {
     const { data: profils } = await supabase.from('profiles').select('id, prenom')
     const { data: deps } = await supabase
       .from('depenses')
-      .select('id, titre, montant, payeur_id, created_at, payeur:payeur_id(prenom), depense_partages(user_id)')
+      .select('id, titre, montant, payeur_id, created_at, ticket_url, payeur:payeur_id(prenom), depense_partages(user_id)')
       .order('created_at', { ascending: false })
 
     const m = profils ?? []
@@ -133,6 +133,12 @@ export default function Depenses() {
               <div className="muted" style={{ fontSize: 13 }}>
                 Partagé entre {parts.map(prenomDe).join(', ')} → {euros(partChacun)} chacun
               </div>
+              {d.ticket_url && (
+                <a href={d.ticket_url} target="_blank" rel="noreferrer" className="ticket-lien">
+                  <img src={d.ticket_url} alt="ticket" className="ticket-vignette" />
+                  🧾 Voir le ticket
+                </a>
+              )}
               {d.payeur_id === profil?.id && (
                 <button className="lien-suppr" onClick={() => supprimer(d.id)}>Supprimer</button>
               )}
