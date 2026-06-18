@@ -98,6 +98,18 @@ h1, h2, h3 { margin: 0 0 10px; }
 .lien-suppr { width: auto; margin: 10px 0 0; padding: 0; background: none; color: var(--rouge); font-size: 13px; font-weight: 600; }
 .lien-suppr:hover { filter: none; text-decoration: underline; }
 
+/* Liste de courses */
+.article-ligne {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.article-ligne:last-child { border-bottom: none; }
+.article-ligne.fait .article-nom { text-decoration: line-through; color: var(--muted); }
+.article-check { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--primary); }
+.article-qte { font-weight: 800; color: var(--primary); min-width: 32px; }
+.article-info { flex: 1; }
+.article-nom { font-weight: 600; }
+
 /* Cases à cocher des participants */
 .checks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .check {

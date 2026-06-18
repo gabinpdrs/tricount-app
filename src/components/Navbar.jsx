@@ -12,6 +12,10 @@ export default function Navbar() {
         <span className="ico">🧾</span>
         Dépenses
       </NavLink>
+      <NavLink to="/courses" className={classe}>
+        <span className="ico">🛒</span>
+        Courses
+      </NavLink>
     </nav>
   )
 }

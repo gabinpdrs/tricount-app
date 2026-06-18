@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import ChangePassword from './pages/ChangePassword'
 import Soldes from './pages/Soldes'
 import Depenses from './pages/Depenses'
+import Courses from './pages/Courses'
 
 export default function App() {
   const { session, profil } = useAuth()
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/changer-mot-de-passe" element={<ChangePassword />} />
         <Route path="/" element={<ProtectedRoute><Soldes /></ProtectedRoute>} />
         <Route path="/depenses" element={<ProtectedRoute><Depenses /></ProtectedRoute>} />
+        <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
       </Routes>
       {afficherNavbar && <Navbar />}
     </>
