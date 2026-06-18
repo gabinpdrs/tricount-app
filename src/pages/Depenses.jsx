@@ -4,41 +4,48 @@ import { useAuth } from '../context/AuthContext'
 import { euros } from '../lib/soldes'
 
 export default function Depenses() {
-  const { session, profil } = useAuth()
+  const { profil } = useAuth()
   const [membres, setMembres] = useState([])
+  const [equipes, setEquipes] = useState([]) // [{ nom, membres:[ids] }]
   const [depenses, setDepenses] = useState([])
   const [chargement, setChargement] = useState(true)
 
-  // Champs du formulaire
   const [titre, setTitre] = useState('')
   const [montant, setMontant] = useState('')
   const [payeur, setPayeur] = useState('')
-  const [participants, setParticipants] = useState([]) // tableau d'ids cochés
+  const [equipesChoisies, setEquipesChoisies] = useState([]) // noms d'équipes cochées
   const [message, setMessage] = useState(null)
 
   async function charger() {
     setChargement(true)
-    const { data: profils } = await supabase.from('profiles').select('id, prenom')
+    const { data: profils } = await supabase.from('profiles').select('id, prenom, equipe')
     const { data: deps } = await supabase
       .from('depenses')
       .select('id, titre, montant, payeur_id, created_at, ticket_url, payeur:payeur_id(prenom), depense_partages(user_id)')
       .order('created_at', { ascending: false })
 
     const m = profils ?? []
+    // Construit les équipes (si pas d'équipe, la personne est sa propre équipe)
+    const map = {}
+    m.forEach((p) => {
+      const eq = p.equipe || p.prenom
+      if (!map[eq]) map[eq] = { nom: eq, membres: [] }
+      map[eq].membres.push(p.id)
+    })
+    const listeEquipes = Object.values(map)
+
     setMembres(m)
+    setEquipes(listeEquipes)
     setDepenses(deps ?? [])
-    // Valeurs par défaut : je suis le payeur, tout le monde partage
     if (profil) setPayeur(profil.id)
-    setParticipants(m.map((x) => x.id))
+    setEquipesChoisies(listeEquipes.map((e) => e.nom)) // toutes cochées par défaut
     setChargement(false)
   }
 
   useEffect(() => { charger() }, [])
 
-  function toggleParticipant(id) {
-    setParticipants((prec) =>
-      prec.includes(id) ? prec.filter((x) => x !== id) : [...prec, id]
-    )
+  function toggleEquipe(nom) {
+    setEquipesChoisies((prec) => prec.includes(nom) ? prec.filter((x) => x !== nom) : [...prec, nom])
   }
 
   async function ajouter(e) {
@@ -47,29 +54,34 @@ export default function Depenses() {
     const m = parseFloat(String(montant).replace(',', '.'))
     if (!titre.trim()) { setMessage({ type: 'erreur', texte: 'Mets un titre.' }); return }
     if (Number.isNaN(m) || m <= 0) { setMessage({ type: 'erreur', texte: 'Montant invalide.' }); return }
-    if (participants.length === 0) { setMessage({ type: 'erreur', texte: 'Coche au moins une personne.' }); return }
+    if (equipesChoisies.length === 0) { setMessage({ type: 'erreur', texte: 'Coche au moins une équipe.' }); return }
+
+    // On transforme les équipes choisies en liste de personnes
+    const participants = equipes
+      .filter((eq) => equipesChoisies.includes(eq.nom))
+      .flatMap((eq) => eq.membres)
 
     const { error } = await supabase.rpc('ajouter_depense', {
-      p_titre: titre.trim(),
-      p_montant: m,
-      p_payeur: payeur,
-      p_participants: participants,
+      p_titre: titre.trim(), p_montant: m, p_payeur: payeur, p_participants: participants,
     })
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
-
     setTitre(''); setMontant('')
     setMessage({ type: 'succes', texte: '✅ Dépense ajoutée !' })
     await charger()
   }
 
   async function supprimer(id) {
-    if (!confirm('Supprimer cette dépense ?')) return
+    if (!window.confirm('Supprimer cette dépense ?')) return
     const { error } = await supabase.from('depenses').delete().eq('id', id)
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
     await charger()
   }
 
-  const prenomDe = (id) => membres.find((x) => x.id === id)?.prenom ?? '?'
+  // équipe d'une personne (pour l'affichage)
+  const equipeDe = (uid) => {
+    const p = membres.find((x) => x.id === uid)
+    return p ? (p.equipe || p.prenom) : '?'
+  }
 
   if (chargement) {
     return <div className="container"><header className="app-header"><h1>🧾 Dépenses</h1></header><p className="muted">Chargement...</p></div>
@@ -78,15 +90,14 @@ export default function Depenses() {
   return (
     <div className="container">
       <header className="app-header">
-        <div><h1>🧾 Dépenses</h1><p>Ajoute et partage une dépense</p></div>
+        <div><h1>🧾 Dépenses</h1><p>Partagées entre les équipes</p></div>
       </header>
 
-      {/* Formulaire d'ajout */}
       <div className="card">
         <h3>➕ Nouvelle dépense</h3>
         <form onSubmit={ajouter}>
           <label>Titre</label>
-          <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex : Courses, Restaurant..." />
+          <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex : Courses, Essence..." />
 
           <label>Montant (€)</label>
           <input type="number" step="0.01" min="0" value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="0,00" />
@@ -98,12 +109,12 @@ export default function Depenses() {
             ))}
           </select>
 
-          <label>Partagé avec (coche les personnes)</label>
+          <label>Partagé entre quelles équipes</label>
           <div className="checks">
-            {membres.map((m) => (
-              <label className={`check ${participants.includes(m.id) ? 'coche' : ''}`} key={m.id}>
-                <input type="checkbox" checked={participants.includes(m.id)} onChange={() => toggleParticipant(m.id)} />
-                {m.prenom}
+            {equipes.map((eq) => (
+              <label className={`check ${equipesChoisies.includes(eq.nom) ? 'coche' : ''}`} key={eq.nom}>
+                <input type="checkbox" checked={equipesChoisies.includes(eq.nom)} onChange={() => toggleEquipe(eq.nom)} />
+                {eq.nom}
               </label>
             ))}
           </div>
@@ -113,14 +124,14 @@ export default function Depenses() {
         </form>
       </div>
 
-      {/* Liste des dépenses */}
       <div className="section-titre">📋 Historique</div>
       {depenses.length === 0 ? (
         <div className="card"><p className="muted">Aucune dépense pour l'instant.</p></div>
       ) : (
         depenses.map((d) => {
           const parts = (d.depense_partages ?? []).map((p) => p.user_id)
-          const partChacun = parts.length ? Number(d.montant) / parts.length : 0
+          const equipesPart = [...new Set(parts.map(equipeDe))]
+          const partChacun = equipesPart.length ? Number(d.montant) / equipesPart.length : 0
           return (
             <div className="card depense" key={d.id}>
               <div className="depense-haut">
@@ -131,7 +142,7 @@ export default function Depenses() {
                 <div className="depense-montant">{euros(d.montant)}</div>
               </div>
               <div className="muted" style={{ fontSize: 13 }}>
-                Partagé entre {parts.map(prenomDe).join(', ')} → {euros(partChacun)} chacun
+                Partagé entre {equipesPart.join(', ')} → {euros(partChacun)} par équipe
               </div>
               {d.ticket_url && (
                 <a href={d.ticket_url} target="_blank" rel="noreferrer" className="ticket-lien">
