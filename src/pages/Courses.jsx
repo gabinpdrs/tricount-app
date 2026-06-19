@@ -20,7 +20,7 @@ export default function Courses() {
 
   async function charger() {
     setChargement(true)
-    const selection = 'id, nom, quantite, achete, ajoute_par, portee, categorie, ajouteur:ajoute_par(prenom), article_preneurs(user_id, preneur:user_id(prenom))'
+    const selection = 'id, nom, quantite, achete, ajoute_par, achete_par, portee, categorie, ajouteur:ajoute_par(prenom), acheteur:achete_par(prenom), article_preneurs(user_id, preneur:user_id(prenom))'
     let req = supabase.from('articles').select(selection)
       .eq('portee', vueActive).eq('categorie', categorie).order('created_at', { ascending: true })
     if (vueActive === 'perso') req = req.eq('ajoute_par', session.user.id)
@@ -47,7 +47,8 @@ export default function Courses() {
   }
 
   async function basculerAchete(a) {
-    await supabase.from('articles').update({ achete: !a.achete }).eq('id', a.id)
+    const nv = !a.achete
+    await supabase.from('articles').update({ achete: nv, achete_par: nv ? session.user.id : null }).eq('id', a.id)
     await charger()
   }
   async function supprimer(id) {
@@ -139,6 +140,7 @@ export default function Courses() {
                       <span className="muted" style={{ fontSize: 12 }}>
                         ajouté par {a.ajouteur?.prenom ?? '?'}
                         {preneurs.length > 0 && <> · 🛒 {preneurs.map((p) => p.preneur?.prenom).join(', ')} {preneurs.length > 1 ? "s'en occupent" : "s'en occupe"}</>}
+                        {a.achete && a.acheteur && <> · ✅ coché par {a.acheteur.prenom}</>}
                       </span>
                     </>
                   )}
@@ -147,7 +149,7 @@ export default function Courses() {
                 {vueActive === 'collectif' && !a.achete && (
                   jePrends
                     ? <button className="btn-pris actif" onClick={() => annulerPrise(a)}>✓ Moi</button>
-                    : <button className="btn-pris" onClick={() => prendre(a)}>C'est moi</button>
+                    : (categorie === 'materiel' || preneurs.length === 0) && <button className="btn-pris" onClick={() => prendre(a)}>C'est moi</button>
                 )}
                 {vueActive === 'perso' && (
                   <button className="btn-pris" onClick={() => versCommune(a)}>→ Commune</button>
