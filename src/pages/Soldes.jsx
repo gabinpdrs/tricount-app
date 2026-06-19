@@ -125,6 +125,52 @@ function Countdown() {
   return <div className="card countdown">{contenu}</div>
 }
 
+// Roue du soir : tire au sort une famille pour une corvée
+function RoueDuSoir({ noms }) {
+  const TACHES = [
+    { label: 'Vaisselle', emoji: '🍽️' },
+    { label: 'Feu de camp', emoji: '🔥' },
+    { label: 'Rangement', emoji: '🧹' },
+    { label: 'Apéro', emoji: '🥂' },
+  ]
+  const [tache, setTache] = useState('Vaisselle')
+  const [resultat, setResultat] = useState(null)
+  const [enCours, setEnCours] = useState(false)
+
+  function tirer() {
+    if (enCours || noms.length === 0) return
+    setEnCours(true)
+    let n = 0
+    const t = setInterval(() => {
+      setResultat(noms[Math.floor(Math.random() * noms.length)])
+      n++
+      if (n > 16) {
+        clearInterval(t)
+        setResultat(noms[Math.floor(Math.random() * noms.length)])
+        setEnCours(false)
+      }
+    }, 80)
+  }
+
+  const emoji = TACHES.find((x) => x.label === tache)?.emoji
+  return (
+    <div className="card">
+      <div className="section-titre" style={{ margin: '0 0 8px' }}>🎲 Roue du soir</div>
+      <div className="roue-taches">
+        {TACHES.map((x) => (
+          <button key={x.label} className={`roue-tache ${tache === x.label ? 'actif' : ''}`} onClick={() => setTache(x.label)}>
+            {x.emoji} {x.label}
+          </button>
+        ))}
+      </div>
+      <div className="roue-resultat">
+        {resultat ? <>{emoji} {tache} : <strong>{resultat}</strong></> : <span className="muted">Clique pour tirer au sort !</span>}
+      </div>
+      <button onClick={tirer} disabled={enCours}>{enCours ? '🎲 Tirage...' : '🎲 Tirer au sort'}</button>
+    </div>
+  )
+}
+
 export default function Soldes() {
   const { session, profil, deconnexion, rafraichirProfil } = useAuth()
   const [equipes, setEquipes] = useState([])
@@ -264,6 +310,8 @@ export default function Soldes() {
               <div className="bilan-lbl">Prochaine activité</div>
             </div>
           </div>
+
+          <RoueDuSoir noms={equipes.map((e) => e.nom)} />
 
           <div className="section-titre">🔁 Qui rembourse qui</div>
           <div className="card">
