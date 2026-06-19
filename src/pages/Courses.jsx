@@ -19,7 +19,7 @@ export default function Courses() {
 
   async function charger() {
     setChargement(true)
-    const selection = 'id, nom, quantite, achete, ajoute_par, portee, ajouteur:ajoute_par(prenom)'
+    const selection = 'id, nom, quantite, achete, ajoute_par, pris_par, portee, ajouteur:ajoute_par(prenom), preneur:pris_par(prenom)'
     let req = supabase.from('articles').select(selection)
       .eq('portee', vueActive).order('created_at', { ascending: true })
     if (vueActive === 'perso') req = req.eq('ajoute_par', session.user.id)
@@ -56,6 +56,14 @@ export default function Courses() {
   }
   async function versCommune(a) {
     await supabase.from('articles').update({ portee: 'collectif' }).eq('id', a.id)
+    await charger()
+  }
+  async function prendre(a) {
+    await supabase.from('articles').update({ pris_par: session.user.id }).eq('id', a.id)
+    await charger()
+  }
+  async function annulerPrise(a) {
+    await supabase.from('articles').update({ pris_par: null }).eq('id', a.id)
     await charger()
   }
 
@@ -109,25 +117,37 @@ export default function Courses() {
         ) : articles.length === 0 ? (
           <p className="muted">Liste vide.</p>
         ) : (
-          articles.map((a) => (
-            <div className={`article-ligne ${a.achete ? 'fait' : ''}`} key={a.id}>
-              <input type="checkbox" className="article-check" checked={a.achete} onChange={() => basculerAchete(a)} />
-              <span className="article-qte">{a.quantite}×</span>
-              <span className="article-info">
-                <span className="article-nom">{a.nom}</span>
-                {vueActive === 'collectif' && (
-                  <>
-                    <br />
-                    <span className="muted" style={{ fontSize: 12 }}>ajouté par {a.ajouteur?.prenom ?? '?'}</span>
-                  </>
+          articles.map((a) => {
+            const prisParMoi = a.pris_par === session.user.id
+            return (
+              <div className={`article-ligne ${a.achete ? 'fait' : ''}`} key={a.id}>
+                <input type="checkbox" className="article-check" checked={a.achete} onChange={() => basculerAchete(a)} />
+                <span className="article-qte">{a.quantite}×</span>
+                <span className="article-info">
+                  <span className="article-nom">{a.nom}</span>
+                  {vueActive === 'collectif' && (
+                    <>
+                      <br />
+                      <span className="muted" style={{ fontSize: 12 }}>
+                        ajouté par {a.ajouteur?.prenom ?? '?'}
+                        {a.pris_par && <> · 🛒 {a.preneur?.prenom} s'en occupe</>}
+                      </span>
+                    </>
+                  )}
+                </span>
+
+                {vueActive === 'collectif' && !a.achete && (
+                  prisParMoi
+                    ? <button className="btn-pris actif" onClick={() => annulerPrise(a)}>✓ Moi</button>
+                    : !a.pris_par && <button className="btn-pris" onClick={() => prendre(a)}>C'est moi</button>
                 )}
-              </span>
-              {vueActive === 'perso' && (
-                <button className="btn-pris" onClick={() => versCommune(a)}>→ Commune</button>
-              )}
-              <button className="lien-suppr" onClick={() => supprimer(a.id)}>✕</button>
-            </div>
-          ))
+                {vueActive === 'perso' && (
+                  <button className="btn-pris" onClick={() => versCommune(a)}>→ Commune</button>
+                )}
+                <button className="lien-suppr" onClick={() => supprimer(a.id)}>✕</button>
+              </div>
+            )
+          })
         )}
       </div>
     </div>

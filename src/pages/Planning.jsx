@@ -43,6 +43,7 @@ export default function Planning() {
   const [titre, setTitre] = useState('')
   const [dateDebut, setDateDebut] = useState(ymd(aujourdhui))
   const [dateFin, setDateFin] = useState(ymd(aujourdhui))
+  const [jourEntier, setJourEntier] = useState(false)
   const [heure, setHeure] = useState('')
   const [heureFin, setHeureFin] = useState('')
   const [lieu, setLieu] = useState('')
@@ -109,7 +110,7 @@ export default function Planning() {
     if (dateFin < dateDebut) { setMessage({ type: 'erreur', texte: 'La date de fin est avant le début.' }); return }
     const { data, error } = await supabase.from('activites').insert({
       titre: titre.trim(), date_debut: dateDebut, date_fin: dateFin,
-      heure: heure || null, heure_fin: heureFin || null,
+      heure: jourEntier ? null : (heure || null), heure_fin: jourEntier ? null : (heureFin || null),
       lieu: lieu.trim() || null, description: description.trim() || null,
       visible_parents: visibleParents, cree_par: session.user.id,
     }).select().single()
@@ -117,7 +118,7 @@ export default function Planning() {
     if (participants.length) {
       await supabase.from('activite_participants').insert(participants.map((uid) => ({ activite_id: data.id, user_id: uid })))
     }
-    setTitre(''); setHeure(''); setHeureFin(''); setLieu(''); setDescription(''); setParticipants([]); setVisibleParents(true)
+    setTitre(''); setHeure(''); setHeureFin(''); setLieu(''); setDescription(''); setJourEntier(false); setParticipants([]); setVisibleParents(true)
     await charger()
   }
   async function supprimer(id) {
@@ -320,16 +321,23 @@ export default function Planning() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <label>De (heure)</label>
-                <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} />
+            <label className="case-collectif">
+              <input type="checkbox" checked={jourEntier} onChange={(e) => setJourEntier(e.target.checked)} />
+              Jour entier (sans heure)
+            </label>
+
+            {!jourEntier && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label>De (heure)</label>
+                  <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label>À (heure)</label>
+                  <input type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} />
+                </div>
               </div>
-              <div style={{ flex: 1 }}>
-                <label>À (heure)</label>
-                <input type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} />
-              </div>
-            </div>
+            )}
 
             <label>Lieu (facultatif)</label>
             <input value={lieu} onChange={(e) => setLieu(e.target.value)} placeholder="Ex : Plage, Aire de jeux..." />
