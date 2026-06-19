@@ -215,7 +215,7 @@ export default function Soldes() {
       </header>
 
       <CampingBanner />
-      <Countdown />
+      {profil?.a_liste_perso && <Countdown />}
       <Meteo />
 
       {photoMsg && <p className="message-succes">{photoMsg}</p>}
