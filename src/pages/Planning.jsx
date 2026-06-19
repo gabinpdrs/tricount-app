@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 
 const JOURS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
-const JOURS_LONG = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+const JOURS_LONG = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM']
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+const PALETTE = ['#e8820c', '#e6398f', '#2563eb', '#1f2d3d', '#16a34a', '#7c3aed', '#0e8a8f']
+const H_DEBUT = 7, H_FIN = 22, H_PX = 48 // grille horaire
 
 function ymd(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -13,19 +15,22 @@ function ymd(d) {
 }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 function debutSemaine(d) { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x }
+function initiale(nom) { return nom ? nom.charAt(0).toUpperCase() : '?' }
 
 export default function Planning() {
   const { session, profil } = useAuth()
   const estEnfant = !!profil?.a_liste_perso
   const aujourdhui = new Date()
 
-  const [vue, setVue] = useState('semaine')     // jour | semaine | mois
+  const [vue, setVue] = useState('semaine')
   const [curseur, setCurseur] = useState(new Date(aujourdhui))
   const [activites, setActivites] = useState([])
   const [membres, setMembres] = useState([])
+  const [filtre, setFiltre] = useState([])        // ids d'enfants pour filtrer
+  const [selAct, setSelAct] = useState(null)
   const [chargement, setChargement] = useState(true)
+  const scrollRef = useRef(null)
 
-  // Formulaire
   const [titre, setTitre] = useState('')
   const [dateDebut, setDateDebut] = useState(ymd(aujourdhui))
   const [dateFin, setDateFin] = useState(ymd(aujourdhui))
@@ -34,7 +39,13 @@ export default function Planning() {
   const [visibleParents, setVisibleParents] = useState(true)
   const [message, setMessage] = useState(null)
 
-  // Plage de dates visible selon la vue
+  const enfants = useMemo(() => membres.filter((m) => m.a_liste_perso), [membres])
+  const couleur = useMemo(() => {
+    const map = {}
+    enfants.forEach((e, i) => { map[e.id] = PALETTE[i % PALETTE.length] })
+    return (a) => map[a.cree_par] || '#0e8a8f'
+  }, [enfants])
+
   const plage = useMemo(() => {
     if (vue === 'jour') return { debut: new Date(curseur), fin: new Date(curseur) }
     if (vue === 'semaine') { const d = debutSemaine(curseur); return { debut: d, fin: addDays(d, 6) } }
@@ -44,7 +55,7 @@ export default function Planning() {
 
   async function charger() {
     setChargement(true)
-    const { data: profs } = await supabase.from('profiles').select('id, prenom')
+    const { data: profs } = await supabase.from('profiles').select('id, prenom, photo_url, a_liste_perso')
     const { data: acts } = await supabase
       .from('activites')
       .select('id, titre, date_debut, date_fin, heure, visible_parents, cree_par, activite_participants(user_id)')
@@ -56,9 +67,15 @@ export default function Planning() {
   }
   useEffect(() => { charger() }, [vue, curseur])
 
-  // Une activité couvre-t-elle ce jour ?
+  // Défile vers le matin à l'ouverture de la vue semaine/jour
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = (8 - H_DEBUT) * H_PX
+  }, [vue])
+
+  const passeFiltre = (a) => filtre.length === 0 || (a.activite_participants || []).some((p) => filtre.includes(p.user_id))
   const couvre = (a, jourStr) => a.date_debut <= jourStr && jourStr <= a.date_fin
-  const activitesDuJour = (jourStr) => activites.filter((a) => couvre(a, jourStr))
+  const visibles = activites.filter(passeFiltre)
+  const sansHeure = (a) => !a.heure || a.date_debut !== a.date_fin // multi-jours ou sans heure -> "journée"
 
   function reculer() {
     if (vue === 'jour') setCurseur(addDays(curseur, -1))
@@ -70,7 +87,7 @@ export default function Planning() {
     else if (vue === 'semaine') setCurseur(addDays(curseur, 7))
     else setCurseur(new Date(curseur.getFullYear(), curseur.getMonth() + 1, 1))
   }
-
+  function toggleFiltre(id) { setFiltre((f) => f.includes(id) ? f.filter((x) => x !== id) : [...f, id]) }
   function toggleParticipant(id) { setParticipants((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]) }
 
   async function ajouter(e) {
@@ -89,47 +106,92 @@ export default function Planning() {
     setTitre(''); setHeure(''); setParticipants([]); setVisibleParents(true)
     await charger()
   }
-
   async function supprimer(id) {
     if (!window.confirm('Supprimer cette activité ?')) return
     await supabase.from('activites').delete().eq('id', id)
+    setSelAct(null)
     await charger()
   }
 
   const prenomDe = (id) => membres.find((m) => m.id === id)?.prenom ?? '?'
 
-  // Affiche une activité (carte)
-  function Activite({ a }) {
-    const multi = a.date_debut !== a.date_fin
+  const labelPeriode = () => {
+    if (vue === 'jour') return curseur.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+    if (vue === 'semaine') { const d = debutSemaine(curseur); const f = addDays(d, 6); return `${d.getDate()} – ${f.getDate()} ${MOIS[f.getMonth()]} ${f.getFullYear()}` }
+    return `${MOIS[curseur.getMonth()]} ${curseur.getFullYear()}`
+  }
+
+  const heures = []
+  for (let h = H_DEBUT; h <= H_FIN; h++) heures.push(h)
+
+  // Grille horaire (1 jour pour la vue Jour, 7 pour la Semaine)
+  function GrilleHoraire({ jours }) {
     return (
-      <div className="activite-ligne">
-        <div className="activite-heure">{a.heure || '—'}</div>
-        <div className="activite-info">
-          <div className="activite-titre">
-            {a.titre}
-            {!a.visible_parents && <span className="badge-cache">enfants</span>}
-          </div>
-          {multi && <div className="muted" style={{ fontSize: 12 }}>📆 du {a.date_debut.split('-').reverse().join('/')} au {a.date_fin.split('-').reverse().join('/')}</div>}
-          <div className="muted" style={{ fontSize: 12 }}>
-            {a.activite_participants?.length ? '👥 ' + a.activite_participants.map((p) => prenomDe(p.user_id)).join(', ') : 'Personne pour l\'instant'}
+      <div className="tg">
+        <div className="tg-head">
+          <div className="tg-timecol" />
+          {jours.map((j, i) => {
+            const auj = ymd(j) === ymd(aujourdhui)
+            return (
+              <div className={`tg-day-head ${auj ? 'auj' : ''}`} key={i}>
+                <div className="tg-day-name">{JOURS_LONG[(j.getDay() + 6) % 7]}</div>
+                <div className="tg-day-num">{j.getDate()}</div>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="tg-allday">
+          <div className="tg-timecol">journée</div>
+          {jours.map((j, i) => {
+            const jourStr = ymd(j)
+            const barres = visibles.filter((a) => sansHeure(a) && couvre(a, jourStr))
+            return (
+              <div className="tg-allday-col" key={i}>
+                {barres.map((a) => (
+                  <div className="tg-allday-bar" key={a.id} style={{ background: couleur(a) }} onClick={() => setSelAct(a)}>
+                    {a.titre}
+                  </div>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="tg-scroll" ref={scrollRef}>
+          <div className="tg-grid">
+            <div className="tg-hours">
+              {heures.map((h) => <div className="tg-hour" key={h}>{h}:00</div>)}
+            </div>
+            {jours.map((j, i) => {
+              const jourStr = ymd(j)
+              const evts = visibles.filter((a) => !sansHeure(a) && couvre(a, jourStr))
+              return (
+                <div className="tg-day-col" key={i}>
+                  {heures.map((h) => <div className="tg-hourline" key={h} />)}
+                  {evts.map((a) => {
+                    const [hh, mm] = a.heure.split(':').map(Number)
+                    const top = Math.max(0, (hh - H_DEBUT + (mm || 0) / 60) * H_PX)
+                    return (
+                      <div className="tg-event" key={a.id}
+                        style={{ background: couleur(a), top: top + 'px', height: (H_PX - 4) + 'px' }}
+                        onClick={() => setSelAct(a)}>
+                        {a.titre}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
           </div>
         </div>
-        {estEnfant && <button className="lien-suppr" onClick={() => supprimer(a.id)}>✕</button>}
       </div>
     )
   }
 
-  // Étiquette de la période
-  const labelPeriode = () => {
-    if (vue === 'jour') return curseur.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-    if (vue === 'semaine') { const d = debutSemaine(curseur); const f = addDays(d, 6); return `${d.getDate()} – ${f.getDate()} ${MOIS[f.getMonth()]}` }
-    return `${MOIS[curseur.getMonth()]} ${curseur.getFullYear()}`
-  }
-
   // Grille du mois
   const cellulesMois = useMemo(() => {
-    const premier = new Date(curseur.getFullYear(), curseur.getMonth(), 1)
-    const dec = (premier.getDay() + 6) % 7
+    const dec = (new Date(curseur.getFullYear(), curseur.getMonth(), 1).getDay() + 6) % 7
     const nb = new Date(curseur.getFullYear(), curseur.getMonth() + 1, 0).getDate()
     const arr = []
     for (let i = 0; i < dec; i++) arr.push(null)
@@ -141,31 +203,43 @@ export default function Planning() {
     <div className="container">
       <header className="app-header">
         <div><h1>📅 Planning</h1><p>{estEnfant ? 'Organise les activités' : 'Lecture seule'}</p></div>
+        <button className="btn-deco" onClick={() => { setCurseur(new Date()); }}>Aujourd'hui</button>
       </header>
 
-      {/* Sélecteur de vue */}
+      {/* Filtres par enfant */}
+      <div className="chips-row">
+        {enfants.map((m) => (
+          <button className={`chip ${filtre.includes(m.id) ? 'actif' : ''}`} key={m.id} onClick={() => toggleFiltre(m.id)}>
+            <span className="chip-av">
+              {m.photo_url ? <img className="avatar-img" src={m.photo_url} alt={m.prenom} /> : initiale(m.prenom)}
+            </span>
+            {m.prenom}
+          </button>
+        ))}
+      </div>
+
       <div className="toggle">
         <button className={vue === 'jour' ? 'actif' : ''} onClick={() => setVue('jour')}>Jour</button>
         <button className={vue === 'semaine' ? 'actif' : ''} onClick={() => setVue('semaine')}>Semaine</button>
         <button className={vue === 'mois' ? 'actif' : ''} onClick={() => setVue('mois')}>Mois</button>
       </div>
 
-      {/* Navigation période */}
-      <div className="card">
-        <div className="cal-header">
-          <button onClick={reculer}>‹</button>
-          <span className="cal-mois">{labelPeriode()}</span>
-          <button onClick={avancer}>›</button>
-        </div>
+      <div className="cal-header">
+        <button className="cal-nav" onClick={reculer}>‹</button>
+        <span className="cal-mois">{labelPeriode()}</span>
+        <button className="cal-nav" onClick={avancer}>›</button>
+      </div>
 
-        {/* VUE MOIS : grille */}
-        {vue === 'mois' && (
+      {chargement ? (
+        <div className="card"><p className="muted">Chargement...</p></div>
+      ) : vue === 'mois' ? (
+        <div className="card">
           <div className="cal-grid">
             {JOURS.map((j, i) => <div className="cal-jour-nom" key={'j' + i}>{j}</div>)}
             {cellulesMois.map((d, i) => {
               if (d === null) return <div className="cal-cell vide" key={i} />
               const dateStr = ymd(new Date(curseur.getFullYear(), curseur.getMonth(), d))
-              const aDes = activitesDuJour(dateStr).length > 0
+              const aDes = visibles.some((a) => couvre(a, dateStr))
               const classes = ['cal-cell']
               if (dateStr === ymd(aujourdhui)) classes.push('auj')
               return (
@@ -176,38 +250,36 @@ export default function Planning() {
               )
             })}
           </div>
-        )}
-      </div>
+        </div>
+      ) : vue === 'jour' ? (
+        <GrilleHoraire jours={[new Date(curseur)]} />
+      ) : (
+        <GrilleHoraire jours={[0, 1, 2, 3, 4, 5, 6].map((i) => addDays(debutSemaine(curseur), i))} />
+      )}
 
-      {/* VUE JOUR */}
-      {vue === 'jour' && (
-        <div className="card">
-          {chargement ? <p className="muted">Chargement...</p>
-            : activitesDuJour(ymd(curseur)).length === 0 ? <p className="muted">Aucune activité ce jour.</p>
-              : activitesDuJour(ymd(curseur)).map((a) => <Activite key={a.id} a={a} />)}
+      {/* Détail de l'activité sélectionnée */}
+      {selAct && (
+        <div className="card" style={{ borderLeft: `4px solid ${couleur(selAct)}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <strong>{selAct.titre}</strong>
+            <button className="coupon-retirer" onClick={() => setSelAct(null)} style={{ width: 'auto', margin: 0, background: 'none' }}>✕</button>
+          </div>
+          <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
+            {selAct.date_debut === selAct.date_fin
+              ? selAct.date_debut.split('-').reverse().join('/')
+              : `du ${selAct.date_debut.split('-').reverse().join('/')} au ${selAct.date_fin.split('-').reverse().join('/')}`}
+            {selAct.heure && ` · ${selAct.heure}`}
+            {!selAct.visible_parents && <span className="badge-cache">enfants</span>}
+          </p>
+          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+            {selAct.activite_participants?.length ? '👥 ' + selAct.activite_participants.map((p) => prenomDe(p.user_id)).join(', ') : 'Personne pour l\'instant'}
+          </p>
+          {estEnfant && <button className="lien-suppr" onClick={() => supprimer(selAct.id)}>Supprimer</button>}
         </div>
       )}
 
-      {/* VUE SEMAINE : 7 jours */}
-      {vue === 'semaine' && (
-        chargement ? <div className="card"><p className="muted">Chargement...</p></div>
-          : [0, 1, 2, 3, 4, 5, 6].map((i) => {
-            const jour = addDays(debutSemaine(curseur), i)
-            const jourStr = ymd(jour)
-            const acts = activitesDuJour(jourStr)
-            const estAuj = jourStr === ymd(aujourdhui)
-            return (
-              <div className="card" key={i} style={{ padding: '12px 14px' }}>
-                <div className={`semaine-jour ${estAuj ? 'auj' : ''}`}>{JOURS_LONG[i]} {jour.getDate()}</div>
-                {acts.length === 0 ? <p className="muted" style={{ margin: '6px 0 0' }}>—</p>
-                  : acts.map((a) => <Activite key={a.id} a={a} />)}
-              </div>
-            )
-          })
-      )}
-
       {/* Ajout (enfants seulement) */}
-      {estEnfant ? (
+      {estEnfant && (
         <div className="card">
           <h3>➕ Nouvelle activité</h3>
           <form onSubmit={ajouter}>
@@ -228,9 +300,9 @@ export default function Planning() {
             <label>Heure (facultatif)</label>
             <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} />
 
-            <label>Qui vient ?</label>
+            <label>Qui vient ? (les enfants)</label>
             <div className="checks">
-              {membres.map((m) => (
+              {enfants.map((m) => (
                 <label className={`check ${participants.includes(m.id) ? 'coche' : ''}`} key={m.id}>
                   <input type="checkbox" checked={participants.includes(m.id)} onChange={() => toggleParticipant(m.id)} />
                   {m.prenom}
@@ -247,8 +319,6 @@ export default function Planning() {
             <button type="submit">Ajouter l'activité</button>
           </form>
         </div>
-      ) : (
-        <p className="muted" style={{ textAlign: 'center' }}>👀 Lecture seule — seuls les enfants modifient le planning.</p>
       )}
     </div>
   )

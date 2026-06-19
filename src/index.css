@@ -183,6 +183,45 @@ button.secondaire { background: #64748b; }
 .message-succes { color: var(--vert); font-size: 14px; margin-top: 8px; font-weight: 600; }
 .muted { color: var(--muted); font-size: 14px; }
 
+/* Chips de filtre (par enfant) */
+.chips-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; }
+.chip {
+  display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 4px; margin: 0;
+  border: 1.5px solid var(--border); border-radius: 999px; background: #fff;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--muted);
+}
+.chip.actif { border-color: var(--primary); color: var(--primary-2); background: #e2f1ef; }
+.chip-av {
+  width: 26px; height: 26px; border-radius: 50%; overflow: hidden; background: var(--card-2);
+  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: var(--text);
+}
+
+/* Navigation période */
+.cal-nav { width: auto; margin: 0; padding: 6px 16px; font-size: 18px; background: var(--card-2); color: var(--primary); }
+
+/* Agenda — grille horaire (vue jour/semaine) */
+.tg { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; box-shadow: var(--ombre); margin-bottom: 12px; }
+.tg-head { display: flex; border-bottom: 1px solid var(--border); }
+.tg-timecol { width: 40px; flex-shrink: 0; }
+.tg-day-head { flex: 1; text-align: center; padding: 6px 1px; border-left: 1px solid var(--border); }
+.tg-day-name { font-size: 10px; color: var(--muted); font-weight: 700; }
+.tg-day-num { font-size: 14px; font-weight: 800; }
+.tg-day-head.auj .tg-day-num { background: var(--primary); color: #fff; border-radius: 50%; width: 24px; height: 24px; line-height: 24px; display: inline-block; }
+.tg-allday { display: flex; border-bottom: 1px solid var(--border); min-height: 24px; }
+.tg-allday .tg-timecol { font-size: 9px; color: var(--muted); display: flex; align-items: center; justify-content: center; text-align: center; }
+.tg-allday-col { flex: 1; border-left: 1px solid var(--border); padding: 2px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tg-allday-bar { font-size: 10px; color: #fff; border-radius: 4px; padding: 2px 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+.tg-scroll { max-height: 430px; overflow-y: auto; }
+.tg-grid { display: flex; position: relative; }
+.tg-hours { width: 40px; flex-shrink: 0; }
+.tg-hour { height: 48px; font-size: 10px; color: var(--muted); text-align: right; padding-right: 4px; box-sizing: border-box; }
+.tg-day-col { flex: 1; border-left: 1px solid var(--border); position: relative; min-width: 0; }
+.tg-hourline { height: 48px; border-top: 1px solid var(--border); box-sizing: border-box; }
+.tg-event {
+  position: absolute; left: 1px; right: 1px; border-radius: 6px; color: #fff;
+  font-size: 10px; line-height: 1.15; padding: 2px 3px; overflow: hidden; cursor: pointer; font-weight: 600;
+}
+
 /* Calendrier / Planning */
 .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .cal-header button { width: auto; margin: 0; padding: 6px 16px; font-size: 18px; background: var(--card-2); color: var(--primary); }
