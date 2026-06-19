@@ -6,6 +6,7 @@ export default function Courses() {
   const { session, profil } = useAuth()
   const aListePerso = !!profil?.a_liste_perso // seuls les enfants ont une liste perso
 
+  const [categorie, setCategorie] = useState('alimentaire')
   const [vue, setVue] = useState('collectif')
   const [aussiCommune, setAussiCommune] = useState(false)
   const [articles, setArticles] = useState([])
@@ -21,23 +22,23 @@ export default function Courses() {
     setChargement(true)
     const selection = 'id, nom, quantite, achete, ajoute_par, pris_par, portee, ajouteur:ajoute_par(prenom), preneur:pris_par(prenom)'
     let req = supabase.from('articles').select(selection)
-      .eq('portee', vueActive).order('created_at', { ascending: true })
+      .eq('portee', vueActive).eq('categorie', categorie).order('created_at', { ascending: true })
     if (vueActive === 'perso') req = req.eq('ajoute_par', session.user.id)
     const { data } = await req
     setArticles(data ?? [])
     setChargement(false)
   }
 
-  useEffect(() => { charger() }, [vueActive])
+  useEffect(() => { charger() }, [vueActive, categorie])
 
   async function ajouter(e) {
     e.preventDefault()
     setMessage(null)
     if (!nom.trim()) { setMessage({ type: 'erreur', texte: 'Mets le nom d\'un article.' }); return }
     const qte = parseInt(quantite, 10) || 1
-    const lignes = [{ nom: nom.trim(), quantite: qte, portee: vueActive, ajoute_par: session.user.id }]
+    const lignes = [{ nom: nom.trim(), quantite: qte, portee: vueActive, categorie, ajoute_par: session.user.id }]
     if (vueActive === 'perso' && aussiCommune) {
-      lignes.push({ nom: nom.trim(), quantite: qte, portee: 'collectif', ajoute_par: session.user.id })
+      lignes.push({ nom: nom.trim(), quantite: qte, portee: 'collectif', categorie, ajoute_par: session.user.id })
     }
     const { error } = await supabase.from('articles').insert(lignes)
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
@@ -72,10 +73,16 @@ export default function Courses() {
   return (
     <div className="container">
       <header className="app-header">
-        <div><h1>🛒 Courses</h1><p>Salut {profil?.prenom} 👋</p></div>
+        <div><h1>📋 Listes</h1><p>Salut {profil?.prenom} 👋</p></div>
       </header>
 
-      {/* Choix de la liste (seulement pour les enfants) */}
+      {/* Choix de la catégorie de liste */}
+      <div className="toggle">
+        <button className={categorie === 'alimentaire' ? 'actif' : ''} onClick={() => setCategorie('alimentaire')}>🍽️ Alimentaire</button>
+        <button className={categorie === 'materiel' ? 'actif' : ''} onClick={() => setCategorie('materiel')}>🎒 Matériel</button>
+      </div>
+
+      {/* Liste commune ou perso (seulement pour les enfants) */}
       {aListePerso && (
         <div className="toggle">
           <button className={vue === 'collectif' ? 'actif' : ''} onClick={() => setVue('collectif')}>🛒 Liste commune</button>

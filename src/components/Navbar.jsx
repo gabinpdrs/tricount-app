@@ -13,8 +13,8 @@ export default function Navbar() {
         Dépenses
       </NavLink>
       <NavLink to="/courses" className={classe}>
-        <span className="ico">🛒</span>
-        Courses
+        <span className="ico">📋</span>
+        Listes
       </NavLink>
       <NavLink to="/planning" className={classe}>
         <span className="ico">📅</span>
