@@ -253,18 +253,6 @@ export default function Planning() {
         <button className="btn-deco" onClick={() => { setCurseur(clampJour(new Date())); }}>Aujourd'hui</button>
       </header>
 
-      {/* Filtres par enfant */}
-      <div className="chips-row">
-        {enfants.map((m) => (
-          <button className={`chip ${filtre.includes(m.id) ? 'actif' : ''}`} key={m.id} onClick={() => toggleFiltre(m.id)}>
-            <span className="chip-av">
-              {m.photo_url ? <img className="avatar-img" src={m.photo_url} alt={m.prenom} /> : initiale(m.prenom)}
-            </span>
-            {m.prenom}
-          </button>
-        ))}
-      </div>
-
       <div className="toggle">
         <button className={vue === 'jour' ? 'actif' : ''} onClick={() => setVue('jour')}>Jour</button>
         <button className={vue === 'sejour' ? 'actif' : ''} onClick={() => setVue('sejour')}>Séjour</button>
