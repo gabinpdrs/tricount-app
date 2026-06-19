@@ -5,8 +5,8 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <NavLink to="/" className={classe} end>
-        <span className="ico">💰</span>
-        Soldes
+        <span className="ico">🏠</span>
+        Accueil
       </NavLink>
       <NavLink to="/depenses" className={classe}>
         <span className="ico">🧾</span>

@@ -141,7 +141,7 @@ export default function Soldes() {
             <input type="file" accept="image/*" onChange={onPhoto} style={{ display: 'none' }} />
           </label>
           <div>
-            <h1>💰 Soldes</h1>
+            <h1>🏠 Accueil</h1>
             <p>{profil?.prenom}{monEquipe && <> · équipe {monEquipe}</>}</p>
           </div>
         </div>
