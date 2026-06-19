@@ -169,7 +169,27 @@ input, select {
   width: 100%; padding: 12px; font-size: 16px;
   border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text);
 }
-input:focus, select:focus { outline: none; border-color: var(--primary); }
+textarea {
+  width: 100%; padding: 12px; font-size: 16px; font-family: inherit;
+  border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text); resize: vertical;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+
+/* Bilan (accueil) */
+.bilan { display: flex; gap: 10px; }
+.bilan-card { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 8px; text-align: center; box-shadow: var(--ombre); cursor: pointer; }
+.bilan-ico { font-size: 24px; }
+.bilan-val { font-weight: 800; font-size: 18px; color: var(--primary); margin-top: 4px; }
+.bilan-val.petit { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bilan-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* Fenêtre popup (modale) */
+.modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(20, 48, 42, 0.5); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-card { background: #fff; border-radius: 16px; padding: 18px; max-width: 420px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; }
+.modal-head strong { font-size: 18px; }
+.modal-head button { width: auto; margin: 0; padding: 4px 12px; background: var(--card-2); color: var(--muted); }
+.modal-info { font-size: 14px; margin: 8px 0; color: var(--text); }
 button {
   width: 100%; padding: 13px; font-size: 15px; font-weight: 800; color: #fff;
   border: none; border-radius: 12px; cursor: pointer; margin-top: 12px;

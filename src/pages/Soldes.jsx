@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { calculerSoldes, calculerRemboursements, euros } from '../lib/soldes'
@@ -54,8 +55,11 @@ export default function Soldes() {
   const [equipes, setEquipes] = useState([])
   const [remboursements, setRemboursements] = useState([])
   const [total, setTotal] = useState(0)
+  const [nbCourses, setNbCourses] = useState(0)
+  const [prochaine, setProchaine] = useState(null)
   const [chargement, setChargement] = useState(true)
   const [photoMsg, setPhotoMsg] = useState('')
+  const navigate = useNavigate()
 
   async function charger() {
     setChargement(true)
@@ -88,6 +92,22 @@ export default function Soldes() {
     setEquipes(liste)
     setRemboursements(calculerRemboursements({ ...soldeParEquipe }, membresEq))
     setTotal((deps ?? []).reduce((acc, d) => acc + Number(d.montant), 0))
+
+    // Bilan Courses : articles de la liste commune encore à acheter
+    const { count } = await supabase
+      .from('articles').select('*', { count: 'exact', head: true })
+      .eq('portee', 'collectif').eq('achete', false)
+    setNbCourses(count ?? 0)
+
+    // Bilan Planning : prochaine activité à venir
+    const todayStr = new Date().toLocaleDateString('sv-SE') // AAAA-MM-JJ local
+    const { data: proch } = await supabase
+      .from('activites').select('titre, date_debut, heure')
+      .gte('date_fin', todayStr)
+      .order('date_debut', { ascending: true }).order('heure', { ascending: true })
+      .limit(1)
+    setProchaine(proch?.[0] ?? null)
+
     setChargement(false)
   }
 
@@ -144,6 +164,25 @@ export default function Soldes() {
             ) : (
               <>Équipe à jour ✅<br /><span className="gros">{euros(0)}</span></>
             )}
+          </div>
+
+          <div className="section-titre">📋 Bilan</div>
+          <div className="bilan">
+            <div className="bilan-card" onClick={() => navigate('/depenses')}>
+              <div className="bilan-ico">🧾</div>
+              <div className="bilan-val">{euros(total)}</div>
+              <div className="bilan-lbl">Dépenses</div>
+            </div>
+            <div className="bilan-card" onClick={() => navigate('/courses')}>
+              <div className="bilan-ico">🛒</div>
+              <div className="bilan-val">{nbCourses}</div>
+              <div className="bilan-lbl">À acheter</div>
+            </div>
+            <div className="bilan-card" onClick={() => navigate('/planning')}>
+              <div className="bilan-ico">📅</div>
+              <div className="bilan-val petit">{prochaine ? prochaine.titre : '—'}</div>
+              <div className="bilan-lbl">Prochaine activité</div>
+            </div>
           </div>
 
           <div className="section-titre">🔁 Qui rembourse qui</div>

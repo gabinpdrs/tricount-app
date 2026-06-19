@@ -16,6 +16,15 @@ function ymd(d) {
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 function debutSemaine(d) { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x }
 function initiale(nom) { return nom ? nom.charAt(0).toUpperCase() : '?' }
+function hauteurEvt(a) {
+  if (a.heure && a.heure_fin) {
+    const [h1, m1] = a.heure.split(':').map(Number)
+    const [h2, m2] = a.heure_fin.split(':').map(Number)
+    const dur = (h2 + (m2 || 0) / 60) - (h1 + (m1 || 0) / 60)
+    if (dur > 0) return Math.max(22, dur * H_PX - 4)
+  }
+  return H_PX - 4
+}
 
 export default function Planning() {
   const { session, profil } = useAuth()
@@ -35,6 +44,9 @@ export default function Planning() {
   const [dateDebut, setDateDebut] = useState(ymd(aujourdhui))
   const [dateFin, setDateFin] = useState(ymd(aujourdhui))
   const [heure, setHeure] = useState('')
+  const [heureFin, setHeureFin] = useState('')
+  const [lieu, setLieu] = useState('')
+  const [description, setDescription] = useState('')
   const [participants, setParticipants] = useState([])
   const [visibleParents, setVisibleParents] = useState(true)
   const [message, setMessage] = useState(null)
@@ -58,7 +70,7 @@ export default function Planning() {
     const { data: profs } = await supabase.from('profiles').select('id, prenom, photo_url, a_liste_perso')
     const { data: acts } = await supabase
       .from('activites')
-      .select('id, titre, date_debut, date_fin, heure, visible_parents, cree_par, activite_participants(user_id)')
+      .select('id, titre, date_debut, date_fin, heure, heure_fin, lieu, description, visible_parents, cree_par, activite_participants(user_id)')
       .lte('date_debut', ymd(plage.fin)).gte('date_fin', ymd(plage.debut))
       .order('heure', { ascending: true })
     setMembres(profs ?? [])
@@ -97,13 +109,15 @@ export default function Planning() {
     if (dateFin < dateDebut) { setMessage({ type: 'erreur', texte: 'La date de fin est avant le début.' }); return }
     const { data, error } = await supabase.from('activites').insert({
       titre: titre.trim(), date_debut: dateDebut, date_fin: dateFin,
-      heure: heure || null, visible_parents: visibleParents, cree_par: session.user.id,
+      heure: heure || null, heure_fin: heureFin || null,
+      lieu: lieu.trim() || null, description: description.trim() || null,
+      visible_parents: visibleParents, cree_par: session.user.id,
     }).select().single()
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
     if (participants.length) {
       await supabase.from('activite_participants').insert(participants.map((uid) => ({ activite_id: data.id, user_id: uid })))
     }
-    setTitre(''); setHeure(''); setParticipants([]); setVisibleParents(true)
+    setTitre(''); setHeure(''); setHeureFin(''); setLieu(''); setDescription(''); setParticipants([]); setVisibleParents(true)
     await charger()
   }
   async function supprimer(id) {
@@ -174,9 +188,9 @@ export default function Planning() {
                     const top = Math.max(0, (hh - H_DEBUT + (mm || 0) / 60) * H_PX)
                     return (
                       <div className="tg-event" key={a.id}
-                        style={{ background: couleur(a), top: top + 'px', height: (H_PX - 4) + 'px' }}
+                        style={{ background: couleur(a), top: top + 'px', height: hauteurEvt(a) + 'px' }}
                         onClick={() => setSelAct(a)}>
-                        {a.titre}
+                        {a.heure_fin ? `${a.heure}–${a.heure_fin}` : a.heure} {a.titre}
                       </div>
                     )
                   })}
@@ -257,24 +271,33 @@ export default function Planning() {
         <GrilleHoraire jours={[0, 1, 2, 3, 4, 5, 6].map((i) => addDays(debutSemaine(curseur), i))} />
       )}
 
-      {/* Détail de l'activité sélectionnée */}
+      {/* Fenêtre détail de l'activité */}
       {selAct && (
-        <div className="card" style={{ borderLeft: `4px solid ${couleur(selAct)}` }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <strong>{selAct.titre}</strong>
-            <button className="coupon-retirer" onClick={() => setSelAct(null)} style={{ width: 'auto', margin: 0, background: 'none' }}>✕</button>
+        <div className="modal-overlay" onClick={() => setSelAct(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ borderTop: `5px solid ${couleur(selAct)}` }}>
+            <div className="modal-head">
+              <strong>{selAct.titre}{!selAct.visible_parents && <span className="badge-cache">enfants</span>}</strong>
+              <button onClick={() => setSelAct(null)}>✕</button>
+            </div>
+
+            <p className="modal-info">
+              📆 {selAct.date_debut === selAct.date_fin
+                ? selAct.date_debut.split('-').reverse().join('/')
+                : `du ${selAct.date_debut.split('-').reverse().join('/')} au ${selAct.date_fin.split('-').reverse().join('/')}`}
+            </p>
+            {selAct.heure && (
+              <p className="modal-info">🕒 {selAct.heure}{selAct.heure_fin ? ` – ${selAct.heure_fin}` : ''}</p>
+            )}
+            {selAct.lieu && <p className="modal-info">📍 {selAct.lieu}</p>}
+            {selAct.description && <p className="modal-info">📝 {selAct.description}</p>}
+            <p className="modal-info">
+              👥 {selAct.activite_participants?.length
+                ? selAct.activite_participants.map((p) => prenomDe(p.user_id)).join(', ')
+                : 'Personne pour l\'instant'}
+            </p>
+
+            {estEnfant && <button className="lien-suppr" onClick={() => supprimer(selAct.id)}>Supprimer l'activité</button>}
           </div>
-          <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
-            {selAct.date_debut === selAct.date_fin
-              ? selAct.date_debut.split('-').reverse().join('/')
-              : `du ${selAct.date_debut.split('-').reverse().join('/')} au ${selAct.date_fin.split('-').reverse().join('/')}`}
-            {selAct.heure && ` · ${selAct.heure}`}
-            {!selAct.visible_parents && <span className="badge-cache">enfants</span>}
-          </p>
-          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-            {selAct.activite_participants?.length ? '👥 ' + selAct.activite_participants.map((p) => prenomDe(p.user_id)).join(', ') : 'Personne pour l\'instant'}
-          </p>
-          {estEnfant && <button className="lien-suppr" onClick={() => supprimer(selAct.id)}>Supprimer</button>}
         </div>
       )}
 
@@ -297,8 +320,22 @@ export default function Planning() {
               </div>
             </div>
 
-            <label>Heure (facultatif)</label>
-            <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <label>De (heure)</label>
+                <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label>À (heure)</label>
+                <input type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} />
+              </div>
+            </div>
+
+            <label>Lieu (facultatif)</label>
+            <input value={lieu} onChange={(e) => setLieu(e.target.value)} placeholder="Ex : Plage, Aire de jeux..." />
+
+            <label>Description (facultatif)</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows="2" placeholder="Infos sur l'activité..." />
 
             <label>Qui vient ? (les enfants)</label>
             <div className="checks">
