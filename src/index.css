@@ -206,6 +206,8 @@ button.secondaire { background: #64748b; }
 .activite-info { flex: 1; }
 .activite-titre { font-weight: 700; }
 .badge-cache { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #fde7d2; color: #b45309; margin-left: 8px; }
+.semaine-jour { font-weight: 800; font-size: 14px; color: var(--text); text-transform: capitalize; }
+.semaine-jour.auj { color: var(--primary); }
 
 /* Navbar */
 .navbar {
