@@ -20,7 +20,7 @@ export default function Courses() {
 
   async function charger() {
     setChargement(true)
-    const selection = 'id, nom, quantite, achete, ajoute_par, pris_par, portee, ajouteur:ajoute_par(prenom), preneur:pris_par(prenom)'
+    const selection = 'id, nom, quantite, achete, ajoute_par, portee, categorie, ajouteur:ajoute_par(prenom), article_preneurs(user_id, preneur:user_id(prenom))'
     let req = supabase.from('articles').select(selection)
       .eq('portee', vueActive).eq('categorie', categorie).order('created_at', { ascending: true })
     if (vueActive === 'perso') req = req.eq('ajoute_par', session.user.id)
@@ -60,11 +60,11 @@ export default function Courses() {
     await charger()
   }
   async function prendre(a) {
-    await supabase.from('articles').update({ pris_par: session.user.id }).eq('id', a.id)
+    await supabase.from('article_preneurs').insert({ article_id: a.id, user_id: session.user.id })
     await charger()
   }
   async function annulerPrise(a) {
-    await supabase.from('articles').update({ pris_par: null }).eq('id', a.id)
+    await supabase.from('article_preneurs').delete().eq('article_id', a.id).eq('user_id', session.user.id)
     await charger()
   }
 
@@ -125,7 +125,8 @@ export default function Courses() {
           <p className="muted">Liste vide.</p>
         ) : (
           articles.map((a) => {
-            const prisParMoi = a.pris_par === session.user.id
+            const preneurs = a.article_preneurs || []
+            const jePrends = preneurs.some((p) => p.user_id === session.user.id)
             return (
               <div className={`article-ligne ${a.achete ? 'fait' : ''}`} key={a.id}>
                 <input type="checkbox" className="article-check" checked={a.achete} onChange={() => basculerAchete(a)} />
@@ -137,16 +138,16 @@ export default function Courses() {
                       <br />
                       <span className="muted" style={{ fontSize: 12 }}>
                         ajouté par {a.ajouteur?.prenom ?? '?'}
-                        {a.pris_par && <> · 🛒 {a.preneur?.prenom} s'en occupe</>}
+                        {preneurs.length > 0 && <> · 🛒 {preneurs.map((p) => p.preneur?.prenom).join(', ')} {preneurs.length > 1 ? "s'en occupent" : "s'en occupe"}</>}
                       </span>
                     </>
                   )}
                 </span>
 
                 {vueActive === 'collectif' && !a.achete && (
-                  prisParMoi
+                  jePrends
                     ? <button className="btn-pris actif" onClick={() => annulerPrise(a)}>✓ Moi</button>
-                    : !a.pris_par && <button className="btn-pris" onClick={() => prendre(a)}>C'est moi</button>
+                    : <button className="btn-pris" onClick={() => prendre(a)}>C'est moi</button>
                 )}
                 {vueActive === 'perso' && (
                   <button className="btn-pris" onClick={() => versCommune(a)}>→ Commune</button>

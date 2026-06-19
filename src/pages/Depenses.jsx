@@ -103,7 +103,7 @@ export default function Depenses() {
   return (
     <div className="container">
       <header className="app-header">
-        <div><h1>🧾 Dépenses</h1><p>Partagées entre les équipes</p></div>
+        <div><h1>🧾 Dépenses</h1><p>Partagées entre les familles</p></div>
       </header>
 
       <div className="card">
@@ -122,7 +122,7 @@ export default function Depenses() {
             ))}
           </select>
 
-          <label>Partagé entre quelles équipes</label>
+          <label>Partagé entre quelles familles</label>
           <div className="checks">
             {equipes.map((eq) => (
               <label className={`check ${equipesChoisies.includes(eq.nom) ? 'coche' : ''}`} key={eq.nom}>
@@ -158,7 +158,7 @@ export default function Depenses() {
                 <div className="depense-montant">{euros(d.montant)}</div>
               </div>
               <div className="muted" style={{ fontSize: 13 }}>
-                Partagé entre {equipesPart.join(', ')} → {euros(partChacun)} par équipe
+                Partagé entre {equipesPart.join(', ')} → {euros(partChacun)} par famille
               </div>
               {d.ticket_url && (
                 <a href={d.ticket_url} target="_blank" rel="noreferrer" className="ticket-lien">

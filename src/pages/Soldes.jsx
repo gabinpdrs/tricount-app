@@ -142,7 +142,7 @@ export default function Soldes() {
           </label>
           <div>
             <h1>🏠 Accueil</h1>
-            <p>{profil?.prenom}{monEquipe && <> · équipe {monEquipe}</>}</p>
+            <p>{profil?.prenom}{monEquipe && <> · famille {monEquipe}</>}</p>
           </div>
         </div>
         <button className="btn-deco" onClick={deconnexion}>Déco</button>
@@ -158,11 +158,11 @@ export default function Soldes() {
         <>
           <div className={`card solde-perso ${monSolde < -0.009 ? 'negatif' : monSolde > 0.009 ? 'positif' : ''}`}>
             {monSolde > 0.009 ? (
-              <>On doit à ton équipe<br /><span className="gros">{euros(monSolde)}</span></>
+              <>On doit à ta famille<br /><span className="gros">{euros(monSolde)}</span></>
             ) : monSolde < -0.009 ? (
-              <>Ton équipe doit<br /><span className="gros">{euros(-monSolde)}</span></>
+              <>Ta famille doit<br /><span className="gros">{euros(-monSolde)}</span></>
             ) : (
-              <>Équipe à jour ✅<br /><span className="gros">{euros(0)}</span></>
+              <>Famille à jour ✅<br /><span className="gros">{euros(0)}</span></>
             )}
           </div>
 
@@ -199,7 +199,7 @@ export default function Soldes() {
             )}
           </div>
 
-          <div className="section-titre">📊 Détail par équipe</div>
+          <div className="section-titre">📊 Détail par famille</div>
           <div className="card">
             {equipes.map((e) => (
               <div className="solde-ligne" key={e.id}>
