@@ -6,7 +6,7 @@ const JOURS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const JOURS_LONG = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM']
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 const PALETTE = ['#e8820c', '#e6398f', '#2563eb', '#1f2d3d', '#16a34a', '#7c3aed', '#0e8a8f']
-const H_DEBUT = 7, H_FIN = 22, H_PX = 48 // grille horaire
+const H_DEBUT = 0, H_FIN = 23, H_PX = 48 // grille horaire (journée complète)
 
 function ymd(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0')
