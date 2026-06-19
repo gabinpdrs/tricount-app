@@ -99,6 +99,23 @@ function Meteo() {
   )
 }
 
+// Compte à rebours avant le camping (départ le 4 juillet)
+function Countdown() {
+  const dep = new Date('2026-07-04T00:00:00')
+  const fin = new Date('2026-07-08T23:59:59')
+  const now = new Date()
+  if (now > fin) return null
+  let contenu
+  if (now < dep) {
+    const j = Math.ceil((dep - now) / 86400000)
+    contenu = <>⏳ J-{j} avant le camping !</>
+  } else {
+    const jour = Math.floor((now - dep) / 86400000) + 1
+    contenu = <>🏕️ Camping en cours — jour {jour} !</>
+  }
+  return <div className="card countdown">{contenu}</div>
+}
+
 export default function Soldes() {
   const { session, profil, deconnexion, rafraichirProfil } = useAuth()
   const [equipes, setEquipes] = useState([])
@@ -198,6 +215,7 @@ export default function Soldes() {
       </header>
 
       <CampingBanner />
+      <Countdown />
       <Meteo />
 
       {photoMsg && <p className="message-succes">{photoMsg}</p>}

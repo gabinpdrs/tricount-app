@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
@@ -9,6 +9,7 @@ import Soldes from './pages/Soldes'
 import Depenses from './pages/Depenses'
 import Courses from './pages/Courses'
 import Planning from './pages/Planning'
+import Photos from './pages/Photos'
 
 export default function App() {
   const { session, profil } = useAuth()
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/depenses" element={<ProtectedRoute><Depenses /></ProtectedRoute>} />
         <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
         <Route path="/planning" element={<ProtectedRoute><Planning /></ProtectedRoute>} />
+        <Route path="/photos" element={<ProtectedRoute>{profil?.a_liste_perso ? <Photos /> : <Navigate to="/" replace />}</ProtectedRoute>} />
       </Routes>
       {afficherNavbar && <Navbar />}
     </>
