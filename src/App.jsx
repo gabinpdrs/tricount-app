@@ -8,6 +8,7 @@ import ChangePassword from './pages/ChangePassword'
 import Soldes from './pages/Soldes'
 import Depenses from './pages/Depenses'
 import Courses from './pages/Courses'
+import Planning from './pages/Planning'
 
 export default function App() {
   const { session, profil } = useAuth()
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/" element={<ProtectedRoute><Soldes /></ProtectedRoute>} />
         <Route path="/depenses" element={<ProtectedRoute><Depenses /></ProtectedRoute>} />
         <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+        <Route path="/planning" element={<ProtectedRoute><Planning /></ProtectedRoute>} />
       </Routes>
       {afficherNavbar && <Navbar />}
     </>

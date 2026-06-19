@@ -183,6 +183,30 @@ button.secondaire { background: #64748b; }
 .message-succes { color: var(--vert); font-size: 14px; margin-top: 8px; font-weight: 600; }
 .muted { color: var(--muted); font-size: 14px; }
 
+/* Calendrier / Planning */
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-header button { width: auto; margin: 0; padding: 6px 16px; font-size: 18px; background: var(--card-2); color: var(--primary); }
+.cal-mois { font-weight: 800; font-size: 16px; text-transform: capitalize; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-jour-nom { text-align: center; font-size: 11px; color: var(--muted); font-weight: 700; padding: 4px 0; }
+.cal-cell {
+  height: 44px; border-radius: 10px; border: none; cursor: pointer; margin: 0; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; background: transparent; color: var(--text);
+}
+.cal-cell.vide { visibility: hidden; }
+.cal-cell.auj { color: var(--primary); font-weight: 800; }
+.cal-cell.sel { background: var(--primary); color: #fff; }
+.cal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--sable); margin-top: 3px; }
+.cal-cell.sel .cal-dot { background: #fff; }
+
+.activite-ligne { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.activite-ligne:last-child { border-bottom: none; }
+.activite-heure { font-weight: 800; color: var(--primary); min-width: 48px; }
+.activite-info { flex: 1; }
+.activite-titre { font-weight: 700; }
+.badge-cache { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #fde7d2; color: #b45309; margin-left: 8px; }
+
 /* Navbar */
 .navbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;

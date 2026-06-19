@@ -16,6 +16,10 @@ export default function Navbar() {
         <span className="ico">🛒</span>
         Courses
       </NavLink>
+      <NavLink to="/planning" className={classe}>
+        <span className="ico">📅</span>
+        Planning
+      </NavLink>
     </nav>
   )
 }
