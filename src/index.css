@@ -84,6 +84,15 @@ h1, h2, h3 { margin: 0 0 10px; }
 .camping-nom { font-size: 22px; font-weight: 900; color: #fff; letter-spacing: 0.3px; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
 .camping-sous { font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); }
 
+/* Météo */
+.meteo-actuel { display: flex; align-items: center; gap: 14px; }
+.meteo-emoji { font-size: 42px; line-height: 1; }
+.meteo-temp { font-size: 30px; font-weight: 800; color: var(--text); }
+.meteo-jours { display: flex; justify-content: space-around; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.meteo-jour { text-align: center; font-size: 12px; }
+.meteo-emoji-mini { font-size: 22px; margin: 3px 0; }
+.meteo-minmax { font-weight: 700; color: var(--text); }
+
 /* Mon solde en grand */
 .solde-perso { text-align: center; font-size: 15px; color: var(--muted); padding: 22px 16px; }
 .solde-perso .gros { display: inline-block; margin-top: 6px; font-size: 34px; font-weight: 900; color: var(--text); }

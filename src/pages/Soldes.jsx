@@ -50,6 +50,55 @@ function CampingBanner() {
   )
 }
 
+// Météo du Lac de Paladru (via Open-Meteo, service gratuit et libre)
+function meteoInfo(code) {
+  if (code === 0) return { emoji: '☀️', label: 'Ensoleillé' }
+  if (code <= 2) return { emoji: '🌤️', label: 'Éclaircies' }
+  if (code === 3) return { emoji: '☁️', label: 'Couvert' }
+  if (code <= 48) return { emoji: '🌫️', label: 'Brouillard' }
+  if (code <= 57) return { emoji: '🌦️', label: 'Bruine' }
+  if (code <= 67) return { emoji: '🌧️', label: 'Pluie' }
+  if (code <= 77) return { emoji: '❄️', label: 'Neige' }
+  if (code <= 82) return { emoji: '🌦️', label: 'Averses' }
+  if (code <= 86) return { emoji: '🌨️', label: 'Neige' }
+  return { emoji: '⛈️', label: 'Orage' }
+}
+
+function Meteo() {
+  const [m, setM] = useState(null)
+  const [err, setErr] = useState(false)
+  useEffect(() => {
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=45.49&longitude=5.53&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,sunset&timezone=Europe%2FParis&forecast_days=3')
+      .then((r) => r.json()).then(setM).catch(() => setErr(true))
+  }, [])
+  if (err || !m?.current) return null
+
+  const info = meteoInfo(m.current.weather_code)
+  const jourCourt = (t, i) => i === 0 ? "Auj." : new Date(t + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short' })
+
+  return (
+    <div className="card meteo">
+      <div className="meteo-actuel">
+        <span className="meteo-emoji">{info.emoji}</span>
+        <div>
+          <div className="meteo-temp">{Math.round(m.current.temperature_2m)}°</div>
+          <div className="muted">{info.label} · Lac de Paladru</div>
+          {m.daily?.sunset?.[0] && <div className="muted">🌇 Coucher du soleil : {m.daily.sunset[0].slice(11, 16)}</div>}
+        </div>
+      </div>
+      <div className="meteo-jours">
+        {m.daily.time.slice(0, 3).map((t, i) => (
+          <div className="meteo-jour" key={i}>
+            <div className="muted">{jourCourt(t, i)}</div>
+            <div className="meteo-emoji-mini">{meteoInfo(m.daily.weather_code[i]).emoji}</div>
+            <div className="meteo-minmax">{Math.round(m.daily.temperature_2m_max[i])}° / {Math.round(m.daily.temperature_2m_min[i])}°</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Soldes() {
   const { session, profil, deconnexion, rafraichirProfil } = useAuth()
   const [equipes, setEquipes] = useState([])
@@ -149,6 +198,7 @@ export default function Soldes() {
       </header>
 
       <CampingBanner />
+      <Meteo />
 
       {photoMsg && <p className="message-succes">{photoMsg}</p>}
 
