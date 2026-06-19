@@ -133,6 +133,9 @@ export default function Soldes() {
     const { data: deps } = await supabase
       .from('depenses')
       .select('id, montant, payeur_id, depense_partages(user_id)')
+    const { data: rembs } = await supabase
+      .from('remboursements')
+      .select('de_id, vers_id, montant')
 
     const membres = profils ?? []
     const depenses = (deps ?? []).map((d) => ({
@@ -141,8 +144,8 @@ export default function Soldes() {
       participants: (d.depense_partages ?? []).map((p) => p.user_id),
     }))
 
-    // solde par personne, puis regroupé par équipe
-    const sUser = calculerSoldes(depenses, membres)
+    // solde par personne (dépenses + remboursements), puis regroupé par famille
+    const sUser = calculerSoldes(depenses, membres, rembs ?? [])
     const map = {}
     membres.forEach((m) => {
       const eq = m.equipe || m.prenom // si pas d'équipe, chacun la sienne

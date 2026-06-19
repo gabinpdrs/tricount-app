@@ -17,6 +17,10 @@ export default function Depenses() {
   const [ticketFile, setTicketFile] = useState(null)
   const [resetTicket, setResetTicket] = useState(0)
   const [message, setMessage] = useState(null)
+  const [remboursements, setRemboursements] = useState([])
+  const [rembVers, setRembVers] = useState('')
+  const [rembMontant, setRembMontant] = useState('')
+  const [msgRemb, setMsgRemb] = useState(null)
 
   async function charger() {
     setChargement(true)
@@ -36,9 +40,15 @@ export default function Depenses() {
     })
     const listeEquipes = Object.values(map)
 
+    const { data: rembs } = await supabase
+      .from('remboursements')
+      .select('id, de_id, vers_id, montant, created_at, de:de_id(prenom), vers:vers_id(prenom)')
+      .order('created_at', { ascending: false })
+
     setMembres(m)
     setEquipes(listeEquipes)
     setDepenses(deps ?? [])
+    setRemboursements(rembs ?? [])
     if (profil) setPayeur(profil.id)
     setEquipesChoisies(listeEquipes.map((e) => e.nom)) // toutes cochées par défaut
     setChargement(false)
@@ -87,6 +97,25 @@ export default function Depenses() {
     if (!window.confirm('Supprimer cette dépense ?')) return
     const { error } = await supabase.from('depenses').delete().eq('id', id)
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
+    await charger()
+  }
+
+  async function ajouterRemboursement(e) {
+    e.preventDefault()
+    setMsgRemb(null)
+    const m = parseFloat(String(rembMontant).replace(',', '.'))
+    if (!rembVers || rembVers === profil?.id) { setMsgRemb({ type: 'erreur', texte: 'Choisis à qui tu rembourses.' }); return }
+    if (Number.isNaN(m) || m <= 0) { setMsgRemb({ type: 'erreur', texte: 'Montant invalide.' }); return }
+    const { error } = await supabase.from('remboursements').insert({ de_id: profil.id, vers_id: rembVers, montant: m })
+    if (error) { setMsgRemb({ type: 'erreur', texte: error.message }); return }
+    setRembMontant(''); setRembVers('')
+    setMsgRemb({ type: 'succes', texte: '✅ Remboursement enregistré !' })
+    await charger()
+  }
+
+  async function supprimerRemboursement(id) {
+    if (!window.confirm('Supprimer ce remboursement ?')) return
+    await supabase.from('remboursements').delete().eq('id', id)
     await charger()
   }
 
@@ -139,6 +168,41 @@ export default function Depenses() {
           <button type="submit">Ajouter la dépense</button>
         </form>
       </div>
+
+      {/* Remboursement */}
+      <div className="card">
+        <h3>💸 J'ai remboursé</h3>
+        <form onSubmit={ajouterRemboursement}>
+          <label>À qui ?</label>
+          <select value={rembVers} onChange={(e) => setRembVers(e.target.value)}>
+            <option value="">— choisir —</option>
+            {membres.filter((x) => x.id !== profil?.id).map((x) => (
+              <option key={x.id} value={x.id}>{x.prenom}</option>
+            ))}
+          </select>
+          <label>Montant (€)</label>
+          <input type="number" step="0.01" min="0" value={rembMontant} onChange={(e) => setRembMontant(e.target.value)} placeholder="0,00" />
+          {msgRemb && <p className={msgRemb.type === 'erreur' ? 'message-erreur' : 'message-succes'}>{msgRemb.texte}</p>}
+          <button type="submit">Enregistrer le remboursement</button>
+        </form>
+      </div>
+
+      {remboursements.length > 0 && (
+        <>
+          <div className="section-titre">🔁 Remboursements</div>
+          <div className="card">
+            {remboursements.map((r) => (
+              <div className="resultat-ligne" key={r.id}>
+                <span><strong>{r.de?.prenom}</strong> → <strong>{r.vers?.prenom}</strong></span>
+                <span>
+                  <span className="remb-montant">{euros(r.montant)}</span>
+                  {r.de_id === profil?.id && <button className="lien-suppr" style={{ marginLeft: 10 }} onClick={() => supprimerRemboursement(r.id)}>✕</button>}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="section-titre">📋 Historique</div>
       {depenses.length === 0 ? (

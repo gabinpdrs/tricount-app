@@ -3,7 +3,7 @@
 //
 // depenses : [{ montant, payeur_id, participants: [user_id, ...] }]
 // membres  : [{ id, prenom }]
-export function calculerSoldes(depenses, membres) {
+export function calculerSoldes(depenses, membres, remboursements = []) {
   const solde = {}
   membres.forEach((m) => { solde[m.id] = 0 })
 
@@ -15,6 +15,12 @@ export function calculerSoldes(depenses, membres) {
     solde[d.payeur_id] = (solde[d.payeur_id] ?? 0) + Number(d.montant)
     // chaque participant doit sa part
     parts.forEach((uid) => { solde[uid] = (solde[uid] ?? 0) - partChacun })
+  })
+
+  // Remboursements : celui qui rembourse réduit sa dette, celui qui reçoit baisse
+  remboursements.forEach((r) => {
+    solde[r.de_id] = (solde[r.de_id] ?? 0) + Number(r.montant)
+    solde[r.vers_id] = (solde[r.vers_id] ?? 0) - Number(r.montant)
   })
 
   // on arrondit aux centimes
