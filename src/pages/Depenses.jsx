@@ -24,7 +24,7 @@ export default function Depenses() {
 
   async function charger() {
     setChargement(true)
-    const { data: profils } = await supabase.from('profiles').select('id, prenom, equipe')
+    const { data: profils } = await supabase.from('profiles').select('id, prenom, equipe, a_liste_perso')
     const { data: deps } = await supabase
       .from('depenses')
       .select('id, titre, montant, payeur_id, created_at, ticket_url, payeur:payeur_id(prenom), depense_partages(user_id)')
@@ -104,9 +104,13 @@ export default function Depenses() {
     e.preventDefault()
     setMsgRemb(null)
     const m = parseFloat(String(rembMontant).replace(',', '.'))
-    if (!rembVers || rembVers === profil?.id) { setMsgRemb({ type: 'erreur', texte: 'Choisis à qui tu rembourses.' }); return }
+    if (!rembVers) { setMsgRemb({ type: 'erreur', texte: 'Choisis une famille.' }); return }
     if (Number.isNaN(m) || m <= 0) { setMsgRemb({ type: 'erreur', texte: 'Montant invalide.' }); return }
-    const { error } = await supabase.from('remboursements').insert({ de_id: profil.id, vers_id: rembVers, montant: m })
+    // On vise un membre de la famille choisie (le solde est calculé par famille)
+    const eq = equipes.find((e) => e.nom === rembVers)
+    const versId = eq?.membres?.find((id) => id !== profil?.id) || eq?.membres?.[0]
+    if (!versId) { setMsgRemb({ type: 'erreur', texte: 'Famille introuvable.' }); return }
+    const { error } = await supabase.from('remboursements').insert({ de_id: profil.id, vers_id: versId, montant: m })
     if (error) { setMsgRemb({ type: 'erreur', texte: error.message }); return }
     setRembMontant(''); setRembVers('')
     setMsgRemb({ type: 'succes', texte: '✅ Remboursement enregistré !' })
@@ -175,9 +179,9 @@ export default function Depenses() {
         <form onSubmit={ajouterRemboursement}>
           <label>À qui ?</label>
           <select value={rembVers} onChange={(e) => setRembVers(e.target.value)}>
-            <option value="">— choisir —</option>
-            {membres.filter((x) => x.id !== profil?.id).map((x) => (
-              <option key={x.id} value={x.id}>{x.prenom}</option>
+            <option value="">— choisir une famille —</option>
+            {equipes.filter((eq) => !eq.membres.includes(profil?.id)).map((eq) => (
+              <option key={eq.nom} value={eq.nom}>{eq.nom}</option>
             ))}
           </select>
           <label>Montant (€)</label>
@@ -193,7 +197,7 @@ export default function Depenses() {
           <div className="card">
             {remboursements.map((r) => (
               <div className="resultat-ligne" key={r.id}>
-                <span><strong>{r.de?.prenom}</strong> → <strong>{r.vers?.prenom}</strong></span>
+                <span><strong>{equipeDe(r.de_id)}</strong> → <strong>{equipeDe(r.vers_id)}</strong></span>
                 <span>
                   <span className="remb-montant">{euros(r.montant)}</span>
                   {r.de_id === profil?.id && <button className="lien-suppr" style={{ marginLeft: 10 }} onClick={() => supprimerRemboursement(r.id)}>✕</button>}
