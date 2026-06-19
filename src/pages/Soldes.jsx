@@ -180,11 +180,12 @@ export default function Soldes() {
   const [prochaine, setProchaine] = useState(null)
   const [chargement, setChargement] = useState(true)
   const [photoMsg, setPhotoMsg] = useState('')
+  const [enfantsNoms, setEnfantsNoms] = useState([])
   const navigate = useNavigate()
 
   async function charger() {
     setChargement(true)
-    const { data: profils } = await supabase.from('profiles').select('id, prenom, equipe, photo_url')
+    const { data: profils } = await supabase.from('profiles').select('id, prenom, equipe, photo_url, a_liste_perso')
     const { data: deps } = await supabase
       .from('depenses')
       .select('id, montant, payeur_id, depense_partages(user_id)')
@@ -214,6 +215,7 @@ export default function Soldes() {
     const membresEq = liste.map((e) => ({ id: e.id, prenom: e.nom }))
 
     setEquipes(liste)
+    setEnfantsNoms(membres.filter((p) => p.a_liste_perso).map((p) => p.prenom))
     setRemboursements(calculerRemboursements({ ...soldeParEquipe }, membresEq))
     setTotal((deps ?? []).reduce((acc, d) => acc + Number(d.montant), 0))
 
@@ -311,7 +313,7 @@ export default function Soldes() {
             </div>
           </div>
 
-          <RoueDuSoir noms={equipes.map((e) => e.nom)} />
+          {profil?.a_liste_perso && <RoueDuSoir noms={enfantsNoms} />}
 
           <div className="section-titre">🔁 Qui rembourse qui</div>
           <div className="card">
