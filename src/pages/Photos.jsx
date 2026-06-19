@@ -7,109 +7,102 @@ const FIN = '2026-07-08'
 
 export default function Photos() {
   const { session, profil } = useAuth()
-  const aListePerso = !!profil?.a_liste_perso        // enfant
   const estGabin = profil?.prenom === 'Gabin'
-  const [photos, setPhotos] = useState([])
-  const [chargement, setChargement] = useState(true)
   const [msg, setMsg] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  const [diapoPhotos, setDiapoPhotos] = useState([])
   const [diapo, setDiapo] = useState(false)
   const [idx, setIdx] = useState(0)
 
-  const today = new Date().toLocaleDateString('sv-SE') // AAAA-MM-JJ
+  const today = new Date().toLocaleDateString('sv-SE')
   const fenetreOuverte = today >= DEBUT && today <= FIN
 
-  async function charger() {
-    setChargement(true)
-    const { data } = await supabase
-      .from('photos_jour')
-      .select('id, user_id, jour, url, profiles:user_id(prenom)')
-      .order('jour', { ascending: true }).order('created_at', { ascending: true })
-    setPhotos(data ?? [])
-    setChargement(false)
-  }
-  useEffect(() => { charger() }, [])
-
-  // Défilement automatique du diaporama
+  // Défilement automatique
   useEffect(() => {
-    if (!diapo || photos.length === 0) return
-    const t = setInterval(() => setIdx((i) => (i + 1) % photos.length), 3000)
+    if (!diapo || diapoPhotos.length === 0) return
+    const t = setInterval(() => setIdx((i) => (i + 1) % diapoPhotos.length), 3000)
     return () => clearInterval(t)
-  }, [diapo, photos.length])
+  }, [diapo, diapoPhotos.length])
 
-  async function onPhoto(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setMsg('Envoi de la photo...')
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-    const chemin = `${session.user.id}-${today}.${ext}`
-    const { error: up } = await supabase.storage.from('souvenirs').upload(chemin, file, { upsert: true, contentType: file.type })
-    if (up) { setMsg('Erreur : ' + up.message); return }
-    const url = `${supabase.storage.from('souvenirs').getPublicUrl(chemin).data.publicUrl}?t=${Date.now()}`
-    const { error } = await supabase.from('photos_jour').upsert(
-      { user_id: session.user.id, jour: today, url }, { onConflict: 'user_id,jour' })
-    if (error) { setMsg('Erreur : ' + error.message); return }
-    setMsg('✅ Photo du jour ajoutée !')
-    await charger()
+  async function onPhotos(e) {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    setEnvoi(true); setMsg('Envoi en cours...')
+    for (const file of files) {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const chemin = `${session.user.id}-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`
+      const { error: up } = await supabase.storage.from('souvenirs').upload(chemin, file, { contentType: file.type })
+      if (up) { setEnvoi(false); setMsg('Erreur : ' + up.message); return }
+      const url = supabase.storage.from('souvenirs').getPublicUrl(chemin).data.publicUrl
+      const { error } = await supabase.from('photos_jour').insert({ user_id: session.user.id, jour: today, url })
+      if (error) { setEnvoi(false); setMsg('Erreur : ' + error.message); return }
+    }
+    setEnvoi(false)
+    setMsg(`✅ ${files.length} photo(s) envoyée(s) ! Elles restent cachées jusqu'au diaporama 🤫`)
+    e.target.value = ''
   }
 
-  const maPhotoDuJour = photos.find((p) => p.user_id === session.user.id && p.jour === today)
+  async function lancerDiapo() {
+    const { data } = await supabase.from('photos_jour')
+      .select('id, url, jour, profiles:user_id(prenom)')
+      .order('created_at', { ascending: true })
+    setDiapoPhotos(data ?? [])
+    setIdx(0)
+    setDiapo(true)
+  }
+
   const jj = (j) => j.slice(8, 10) + '/' + j.slice(5, 7)
 
   return (
     <div className="container">
       <header className="app-header">
-        <div><h1>📷 Photos</h1><p>Souvenirs du camping</p></div>
+        <div><h1>📷 Photos</h1><p>Souvenirs surprise du camping</p></div>
       </header>
 
-      {/* Ajout (enfants, pendant le séjour) */}
-      {aListePerso && (
-        fenetreOuverte ? (
-          <div className="card">
-            <h3>📸 Ta photo du jour ({jj(today)})</h3>
-            {maPhotoDuJour && <img src={maPhotoDuJour.url} alt="ma photo" style={{ width: '100%', borderRadius: 12, marginBottom: 8 }} />}
-            <label className="btn-photo-jour">
-              {maPhotoDuJour ? 'Remplacer ma photo' : 'Ajouter ma photo'}
-              <input type="file" accept="image/*" onChange={onPhoto} style={{ display: 'none' }} />
-            </label>
-            {msg && <p className="message-succes">{msg}</p>}
-          </div>
-        ) : (
-          <div className="card"><p className="muted" style={{ margin: 0 }}>📅 L'album sera ouvert du <strong>4 au 8 juillet</strong> — chaque jour, mets ta photo !</p></div>
-        )
-      )}
-
-      {/* Bouton diaporama : seulement Gabin */}
-      {estGabin && photos.length > 0 && (
-        <button onClick={() => { setIdx(0); setDiapo(true) }}>▶️ Lancer le diaporama</button>
-      )}
-
-      {/* Galerie */}
-      <div className="section-titre">🖼️ L'album</div>
-      {chargement ? (
-        <div className="card"><p className="muted">Chargement...</p></div>
-      ) : photos.length === 0 ? (
-        <div className="card"><p className="muted">Aucune photo pour l'instant.</p></div>
-      ) : (
-        <div className="photos-grid">
-          {photos.map((p) => (
-            <div className="photo-vignette" key={p.id} onClick={() => { setIdx(photos.indexOf(p)); setDiapo(true) }}>
-              <img src={p.url} alt={p.profiles?.prenom} />
-              <div className="photo-leg">{p.profiles?.prenom} · {jj(p.jour)}</div>
-            </div>
-          ))}
+      {/* Ajout de photos */}
+      {fenetreOuverte ? (
+        <div className="card">
+          <h3>📸 Ajoute tes photos du jour</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Mets-en autant que tu veux ! Tu ne les reverras pas : elles restent <strong>cachées</strong> jusqu'à
+            ce que Gabin lance le diaporama 🎬
+          </p>
+          <label className="btn-photo-jour">
+            {envoi ? 'Envoi...' : '+ Ajouter des photos'}
+            <input type="file" accept="image/*" multiple onChange={onPhotos} style={{ display: 'none' }} disabled={envoi} />
+          </label>
+          {msg && <p className="message-succes">{msg}</p>}
         </div>
+      ) : (
+        <div className="card"><p className="muted" style={{ margin: 0 }}>📅 L'album sera ouvert du <strong>4 au 8 juillet</strong>.</p></div>
+      )}
+
+      {/* Révéler : seulement Gabin */}
+      {estGabin ? (
+        <div className="card" style={{ textAlign: 'center' }}>
+          <p className="muted" style={{ marginTop: 0 }}>Toi seul peux révéler les photos 🤫</p>
+          <button onClick={lancerDiapo}>▶️ Lancer le diaporama</button>
+        </div>
+      ) : (
+        <p className="muted" style={{ textAlign: 'center' }}>🤫 Les photos sont secrètes — c'est Gabin qui lancera le diaporama.</p>
       )}
 
       {/* Diaporama plein écran */}
-      {diapo && photos.length > 0 && (
+      {diapo && (
         <div className="diapo-overlay">
           <button className="diapo-fermer" onClick={() => setDiapo(false)}>✕</button>
-          <img className="diapo-img" src={photos[idx].url} alt="" />
-          <div className="diapo-leg">{photos[idx].profiles?.prenom} · {jj(photos[idx].jour)}</div>
-          <div className="diapo-controls">
-            <button onClick={() => setIdx((i) => (i - 1 + photos.length) % photos.length)}>‹</button>
-            <button onClick={() => setIdx((i) => (i + 1) % photos.length)}>›</button>
-          </div>
+          {diapoPhotos.length === 0 ? (
+            <div style={{ color: '#fff', fontWeight: 700 }}>Aucune photo pour l'instant 📭</div>
+          ) : (
+            <>
+              <img className="diapo-img" src={diapoPhotos[idx].url} alt="" />
+              <div className="diapo-leg">{diapoPhotos[idx].profiles?.prenom} · {jj(diapoPhotos[idx].jour)} ({idx + 1}/{diapoPhotos.length})</div>
+              <div className="diapo-controls">
+                <button onClick={() => setIdx((i) => (i - 1 + diapoPhotos.length) % diapoPhotos.length)}>‹</button>
+                <button onClick={() => setIdx((i) => (i + 1) % diapoPhotos.length)}>›</button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
