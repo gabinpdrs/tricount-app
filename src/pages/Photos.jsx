@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 
@@ -16,13 +16,6 @@ export default function Photos() {
 
   const today = new Date().toLocaleDateString('sv-SE')
   const fenetreOuverte = today >= DEBUT && today <= FIN
-
-  // Défilement automatique
-  useEffect(() => {
-    if (!diapo || diapoPhotos.length === 0) return
-    const t = setInterval(() => setIdx((i) => (i + 1) % diapoPhotos.length), 3000)
-    return () => clearInterval(t)
-  }, [diapo, diapoPhotos.length])
 
   async function onPhotos(e) {
     const files = Array.from(e.target.files || [])
@@ -101,8 +94,8 @@ export default function Photos() {
               <img className="diapo-img" src={diapoPhotos[idx].url} alt="" />
               <div className="diapo-leg">{diapoPhotos[idx].profiles?.prenom} · {jj(diapoPhotos[idx].jour)} ({idx + 1}/{diapoPhotos.length})</div>
               <div className="diapo-controls">
-                <button onClick={() => setIdx((i) => (i - 1 + diapoPhotos.length) % diapoPhotos.length)}>‹</button>
-                <button onClick={() => setIdx((i) => (i + 1) % diapoPhotos.length)}>›</button>
+                <button onClick={() => setIdx((i) => (i - 1 + diapoPhotos.length) % diapoPhotos.length)}>‹ Précédent</button>
+                <button onClick={() => setIdx((i) => (i + 1) % diapoPhotos.length)}>Suivant ›</button>
               </div>
             </>
           )}
