@@ -130,7 +130,6 @@ function Countdown() {
 function RoueDuSoir({ noms }) {
   const TACHES = [
     { label: 'Vaisselle', emoji: '🍽️' },
-    { label: 'Feu de camp', emoji: '🔥' },
     { label: 'Rangement', emoji: '🧹' },
     { label: 'Apéro', emoji: '🥂' },
   ]
