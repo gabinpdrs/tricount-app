@@ -10,6 +10,7 @@ export default function Depenses() {
   const [depenses, setDepenses] = useState([])
   const [chargement, setChargement] = useState(true)
 
+  const [editId, setEditId] = useState(null) // id de la dépense en cours de modification
   const [titre, setTitre] = useState('')
   const [montant, setMontant] = useState('')
   const [payeur, setPayeur] = useState('')
@@ -84,13 +85,32 @@ export default function Depenses() {
       ticketUrl = supabase.storage.from('tickets').getPublicUrl(chemin).data.publicUrl
     }
 
-    const { error } = await supabase.rpc('ajouter_depense', {
-      p_titre: titre.trim(), p_montant: m, p_payeur: payeur, p_participants: participants, p_ticket_url: ticketUrl,
-    })
+    const enEdition = !!editId
+    const { error } = enEdition
+      ? await supabase.rpc('modifier_depense', { p_id: editId, p_titre: titre.trim(), p_montant: m, p_payeur: payeur, p_participants: participants, p_ticket_url: ticketUrl })
+      : await supabase.rpc('ajouter_depense', { p_titre: titre.trim(), p_montant: m, p_payeur: payeur, p_participants: participants, p_ticket_url: ticketUrl })
     if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
-    setTitre(''); setMontant(''); setTicketFile(null); setResetTicket((n) => n + 1)
-    setMessage({ type: 'succes', texte: '✅ Dépense ajoutée !' })
+    annulerEdition()
+    setMessage({ type: 'succes', texte: enEdition ? '✅ Dépense modifiée !' : '✅ Dépense ajoutée !' })
     await charger()
+  }
+
+  function lancerEdition(d) {
+    setEditId(d.id)
+    setTitre(d.titre)
+    setMontant(String(d.montant))
+    setPayeur(d.payeur_id)
+    const parts = (d.depense_partages ?? []).map((p) => p.user_id)
+    setEquipesChoisies([...new Set(parts.map(equipeDe))])
+    setMessage(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function annulerEdition() {
+    setEditId(null)
+    setTitre(''); setMontant(''); setTicketFile(null); setResetTicket((n) => n + 1)
+    if (profil) setPayeur(profil.id)
+    setEquipesChoisies(equipes.map((e) => e.nom))
   }
 
   async function supprimer(id) {
@@ -140,7 +160,7 @@ export default function Depenses() {
       </header>
 
       <div className="card">
-        <h3>➕ Nouvelle dépense</h3>
+        <h3>{editId ? '✏️ Modifier la dépense' : '➕ Nouvelle dépense'}</h3>
         <form onSubmit={ajouter}>
           <label>Titre</label>
           <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex : Courses, Essence..." />
@@ -169,7 +189,8 @@ export default function Depenses() {
           <input key={resetTicket} type="file" accept="image/*" onChange={(e) => setTicketFile(e.target.files?.[0] ?? null)} />
 
           {message && <p className={message.type === 'erreur' ? 'message-erreur' : 'message-succes'}>{message.texte}</p>}
-          <button type="submit">Ajouter la dépense</button>
+          <button type="submit">{editId ? 'Enregistrer les modifications' : 'Ajouter la dépense'}</button>
+          {editId && <button type="button" className="secondaire" onClick={annulerEdition}>Annuler</button>}
         </form>
       </div>
 
@@ -235,7 +256,10 @@ export default function Depenses() {
                 </a>
               )}
               {d.payeur_id === profil?.id && (
-                <button className="lien-suppr" onClick={() => supprimer(d.id)}>Supprimer</button>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <button className="lien-modif" onClick={() => lancerEdition(d)}>Modifier</button>
+                  <button className="lien-suppr" onClick={() => supprimer(d.id)}>Supprimer</button>
+                </div>
               )}
             </div>
           )

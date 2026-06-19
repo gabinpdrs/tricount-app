@@ -136,6 +136,8 @@ h1, h2, h3 { margin: 0 0 10px; }
 .depense-titre { font-weight: 700; font-size: 16px; }
 .depense-montant { font-weight: 800; font-size: 18px; color: var(--primary); white-space: nowrap; }
 .lien-suppr { width: auto; margin: 10px 0 0; padding: 0; background: none; color: var(--rouge); font-size: 13px; font-weight: 600; }
+.lien-modif { width: auto; margin: 10px 0 0; padding: 0; background: none; color: var(--primary); font-size: 13px; font-weight: 600; }
+.lien-modif:hover { filter: none; text-decoration: underline; }
 .lien-suppr:hover { filter: none; text-decoration: underline; }
 
 /* Bouton "C'est moi qui l'achète" */

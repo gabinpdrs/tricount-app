@@ -66,10 +66,18 @@ function meteoInfo(code) {
 
 function Meteo() {
   const [m, setM] = useState(null)
+  const [eau, setEau] = useState(null)
   const [err, setErr] = useState(false)
   useEffect(() => {
     fetch('https://api.open-meteo.com/v1/forecast?latitude=45.49&longitude=5.53&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,sunset&timezone=Europe%2FParis&forecast_days=3')
       .then((r) => r.json()).then(setM).catch(() => setErr(true))
+    // Estimation de la température de l'eau : moyenne des 7 derniers jours
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=45.49&longitude=5.53&daily=temperature_2m_mean&past_days=7&forecast_days=1&timezone=Europe%2FParis')
+      .then((r) => r.json())
+      .then((d) => {
+        const t = (d.daily?.temperature_2m_mean || []).filter((v) => v != null)
+        if (t.length) setEau(Math.round(t.reduce((a, b) => a + b, 0) / t.length))
+      }).catch(() => {})
   }, [])
   if (err || !m?.current) return null
 
@@ -84,6 +92,7 @@ function Meteo() {
           <div className="meteo-temp">{Math.round(m.current.temperature_2m)}°</div>
           <div className="muted">{info.label} · Lac de Paladru</div>
           {m.daily?.sunset?.[0] && <div className="muted">🌇 Coucher du soleil : {m.daily.sunset[0].slice(11, 16)}</div>}
+          {eau != null && <div className="muted">🌊 Eau du lac : ~{eau}° (estimée)</div>}
         </div>
       </div>
       <div className="meteo-jours">

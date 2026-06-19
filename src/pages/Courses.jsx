@@ -117,7 +117,9 @@ export default function Courses() {
 
       <div className="section-titre">
         {vueActive === 'perso' ? '👤 Ma liste' : '🛒 Liste commune'}
-        {restants > 0 && <span className="muted" style={{ fontWeight: 400 }}>&nbsp;({restants} à acheter)</span>}
+        {articles.length > 0 && (
+          <span className="muted" style={{ fontWeight: 400 }}>&nbsp;· {articles.filter((a) => a.achete).length}/{articles.length} achetés</span>
+        )}
       </div>
       <div className="card">
         {chargement ? (

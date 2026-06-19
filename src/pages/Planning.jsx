@@ -50,6 +50,7 @@ export default function Planning() {
   const [chargement, setChargement] = useState(true)
   const scrollRef = useRef(null)
 
+  const [editId, setEditId] = useState(null)
   const [titre, setTitre] = useState('')
   const [dateDebut, setDateDebut] = useState(PLAN_DEBUT)
   const [dateFin, setDateFin] = useState(PLAN_DEBUT)
@@ -117,17 +118,27 @@ export default function Planning() {
     if (!titre.trim()) { setMessage({ type: 'erreur', texte: 'Mets un titre.' }); return }
     if (dateFin < dateDebut) { setMessage({ type: 'erreur', texte: 'La date de fin est avant le début.' }); return }
     if (dateDebut < PLAN_DEBUT || dateFin > PLAN_FIN) { setMessage({ type: 'erreur', texte: 'Le planning va du 4 au 8 juillet seulement.' }); return }
-    const { data, error } = await supabase.from('activites').insert({
+
+    const champs = {
       titre: titre.trim(), date_debut: dateDebut, date_fin: dateFin,
       heure: jourEntier ? null : (heure || null), heure_fin: jourEntier ? null : (heureFin || null),
-      lieu: lieu.trim() || null, description: description.trim() || null,
-      visible_parents: visibleParents, cree_par: session.user.id,
-    }).select().single()
-    if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
-    if (participants.length) {
-      await supabase.from('activite_participants').insert(participants.map((uid) => ({ activite_id: data.id, user_id: uid })))
+      description: description.trim() || null, visible_parents: visibleParents,
     }
-    setTitre(''); setHeure(''); setHeureFin(''); setLieu(''); setDescription(''); setJourEntier(false); setParticipants([]); setVisibleParents(true)
+
+    let activiteId = editId
+    if (editId) {
+      const { error } = await supabase.from('activites').update(champs).eq('id', editId)
+      if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
+      await supabase.from('activite_participants').delete().eq('activite_id', editId)
+    } else {
+      const { data, error } = await supabase.from('activites').insert({ ...champs, cree_par: session.user.id }).select().single()
+      if (error) { setMessage({ type: 'erreur', texte: error.message }); return }
+      activiteId = data.id
+    }
+    if (participants.length) {
+      await supabase.from('activite_participants').insert(participants.map((uid) => ({ activite_id: activiteId, user_id: uid })))
+    }
+    annulerEdition()
     await charger()
   }
   async function supprimer(id) {
@@ -135,6 +146,29 @@ export default function Planning() {
     await supabase.from('activites').delete().eq('id', id)
     setSelAct(null)
     await charger()
+  }
+
+  function lancerEdition(a) {
+    setEditId(a.id)
+    setTitre(a.titre)
+    setDateDebut(a.date_debut)
+    setDateFin(a.date_fin)
+    setJourEntier(!a.heure)
+    setHeure(a.heure || '')
+    setHeureFin(a.heure_fin || '')
+    setDescription(a.description || '')
+    setVisibleParents(a.visible_parents)
+    setParticipants((a.activite_participants || []).map((p) => p.user_id))
+    setSelAct(null)
+    setMessage(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function annulerEdition() {
+    setEditId(null)
+    setTitre(''); setHeure(''); setHeureFin(''); setDescription(''); setJourEntier(false)
+    setParticipants([]); setVisibleParents(true)
+    setDateDebut(PLAN_DEBUT); setDateFin(PLAN_DEBUT)
   }
 
   const prenomDe = (id) => membres.find((m) => m.id === id)?.prenom ?? '?'
@@ -275,7 +309,12 @@ export default function Planning() {
                 : 'Personne pour l\'instant'}
             </p>
 
-            {estEnfant && <button className="lien-suppr" onClick={() => supprimer(selAct.id)}>Supprimer l'activité</button>}
+            {estEnfant && (
+              <div style={{ display: 'flex', gap: 16 }}>
+                <button className="lien-modif" onClick={() => lancerEdition(selAct)}>Modifier</button>
+                <button className="lien-suppr" onClick={() => supprimer(selAct.id)}>Supprimer</button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -283,7 +322,7 @@ export default function Planning() {
       {/* Ajout (enfants seulement) */}
       {estEnfant && (
         <div className="card">
-          <h3>➕ Nouvelle activité</h3>
+          <h3>{editId ? '✏️ Modifier l\'activité' : '➕ Nouvelle activité'}</h3>
           <form onSubmit={ajouter}>
             <label>Titre</label>
             <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex : Rando, Pétanque, Baignade..." />
@@ -336,7 +375,8 @@ export default function Planning() {
             </label>
 
             {message && <p className={message.type === 'erreur' ? 'message-erreur' : 'message-succes'}>{message.texte}</p>}
-            <button type="submit">Ajouter l'activité</button>
+            <button type="submit">{editId ? 'Enregistrer les modifications' : 'Ajouter l\'activité'}</button>
+            {editId && <button type="button" className="secondaire" onClick={annulerEdition}>Annuler</button>}
           </form>
         </div>
       )}
