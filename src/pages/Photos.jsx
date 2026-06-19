@@ -15,7 +15,8 @@ export default function Photos() {
   const [idx, setIdx] = useState(0)
 
   const today = new Date().toLocaleDateString('sv-SE')
-  const fenetreOuverte = today >= DEBUT && today <= FIN
+  // ⚠️ TEST : upload débloqué. À remettre après : today >= DEBUT && today <= FIN
+  const fenetreOuverte = true
 
   async function onPhotos(e) {
     const files = Array.from(e.target.files || [])
