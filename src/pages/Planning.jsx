@@ -26,13 +26,23 @@ function hauteurEvt(a) {
   return H_PX - 4
 }
 
+// Le planning ne couvre que le séjour : 4 au 8 juillet 2026
+const PLAN_DEBUT = '2026-07-04'
+const PLAN_FIN = '2026-07-08'
+function clampJour(d) {
+  const s = ymd(d)
+  if (s < PLAN_DEBUT) return new Date(PLAN_DEBUT + 'T12:00:00')
+  if (s > PLAN_FIN) return new Date(PLAN_FIN + 'T12:00:00')
+  return d
+}
+
 export default function Planning() {
   const { session, profil } = useAuth()
   const estEnfant = !!profil?.a_liste_perso
   const aujourdhui = new Date()
 
   const [vue, setVue] = useState('semaine')
-  const [curseur, setCurseur] = useState(new Date(aujourdhui))
+  const [curseur, setCurseur] = useState(clampJour(new Date(aujourdhui)))
   const [activites, setActivites] = useState([])
   const [membres, setMembres] = useState([])
   const [filtre, setFiltre] = useState([])        // ids d'enfants pour filtrer
@@ -41,8 +51,8 @@ export default function Planning() {
   const scrollRef = useRef(null)
 
   const [titre, setTitre] = useState('')
-  const [dateDebut, setDateDebut] = useState(ymd(aujourdhui))
-  const [dateFin, setDateFin] = useState(ymd(aujourdhui))
+  const [dateDebut, setDateDebut] = useState(PLAN_DEBUT)
+  const [dateFin, setDateFin] = useState(PLAN_DEBUT)
   const [jourEntier, setJourEntier] = useState(false)
   const [heure, setHeure] = useState('')
   const [heureFin, setHeureFin] = useState('')
@@ -108,6 +118,7 @@ export default function Planning() {
     setMessage(null)
     if (!titre.trim()) { setMessage({ type: 'erreur', texte: 'Mets un titre.' }); return }
     if (dateFin < dateDebut) { setMessage({ type: 'erreur', texte: 'La date de fin est avant le début.' }); return }
+    if (dateDebut < PLAN_DEBUT || dateFin > PLAN_FIN) { setMessage({ type: 'erreur', texte: 'Le planning va du 4 au 8 juillet seulement.' }); return }
     const { data, error } = await supabase.from('activites').insert({
       titre: titre.trim(), date_debut: dateDebut, date_fin: dateFin,
       heure: jourEntier ? null : (heure || null), heure_fin: jourEntier ? null : (heureFin || null),
@@ -218,7 +229,7 @@ export default function Planning() {
     <div className="container">
       <header className="app-header">
         <div><h1>📅 Planning</h1><p>{estEnfant ? 'Organise les activités' : 'Lecture seule'}</p></div>
-        <button className="btn-deco" onClick={() => { setCurseur(new Date()); }}>Aujourd'hui</button>
+        <button className="btn-deco" onClick={() => { setCurseur(clampJour(new Date())); }}>Aujourd'hui</button>
       </header>
 
       {/* Filtres par enfant */}
@@ -313,11 +324,11 @@ export default function Planning() {
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ flex: 1 }}>
                 <label>Du</label>
-                <input type="date" value={dateDebut} onChange={(e) => { setDateDebut(e.target.value); if (e.target.value > dateFin) setDateFin(e.target.value) }} />
+                <input type="date" value={dateDebut} min={PLAN_DEBUT} max={PLAN_FIN} onChange={(e) => { setDateDebut(e.target.value); if (e.target.value > dateFin) setDateFin(e.target.value) }} />
               </div>
               <div style={{ flex: 1 }}>
                 <label>Au</label>
-                <input type="date" value={dateFin} min={dateDebut} onChange={(e) => setDateFin(e.target.value)} />
+                <input type="date" value={dateFin} min={dateDebut} max={PLAN_FIN} onChange={(e) => setDateFin(e.target.value)} />
               </div>
             </div>
 
