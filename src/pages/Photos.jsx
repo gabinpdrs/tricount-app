@@ -43,6 +43,9 @@ export default function Photos() {
   }
 
   async function lancerDiapo() {
+    // Double sécurité : on confirme deux fois (action qui révèle tout)
+    if (!window.confirm('⚠️ Lancer le diaporama va RÉVÉLER toutes les photos. Continuer ?')) return
+    if (!window.confirm('Es-tu vraiment sûr ? Une fois lancé, tout le monde autour va les voir 🎬')) return
     const { data } = await supabase.from('photos_jour')
       .select('id, url, jour, profiles:user_id(prenom)')
       .order('created_at', { ascending: true })
