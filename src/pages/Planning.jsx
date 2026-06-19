@@ -307,18 +307,15 @@ export default function Planning() {
             {!jourEntier && (
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label>De (heure)</label>
+                  <label>Début</label>
                   <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label>À (heure)</label>
+                  <label>Fin</label>
                   <input type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} />
                 </div>
               </div>
             )}
-
-            <label>Lieu (facultatif)</label>
-            <input value={lieu} onChange={(e) => setLieu(e.target.value)} placeholder="Ex : Plage, Aire de jeux..." />
 
             <label>Description (facultatif)</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows="2" placeholder="Infos sur l'activité..." />
