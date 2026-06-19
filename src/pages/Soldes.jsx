@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { calculerSoldes, calculerRemboursements, euros } from '../lib/soldes'
+import { VERSION } from '../version'
 
 // Bannière "camping" : petit paysage (montagnes, lac, tente) + le nom du camping
 function CampingBanner() {
@@ -344,6 +345,7 @@ export default function Soldes() {
           <p className="muted" style={{ textAlign: 'center' }}>Total des dépenses : {euros(total)}</p>
         </>
       )}
+      <p className="version-footer">📲 Version {VERSION}</p>
     </div>
   )
 }
