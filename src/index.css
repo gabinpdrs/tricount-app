@@ -236,16 +236,16 @@ button.secondaire { background: #64748b; }
 .muted { color: var(--muted); font-size: 14px; }
 
 /* Chips de filtre (par enfant) */
-.chips-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; }
+.chips-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 12px; }
 .chip {
-  display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 4px; margin: 0;
+  display: flex; align-items: center; gap: 5px; padding: 3px 9px 3px 3px; margin: 0;
   border: 1.5px solid var(--border); border-radius: 999px; background: #fff;
-  cursor: pointer; white-space: nowrap; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--muted);
+  cursor: pointer; white-space: nowrap; font-size: 12px; font-weight: 600; color: var(--muted);
 }
 .chip.actif { border-color: var(--primary); color: var(--primary-2); background: #e2f1ef; }
 .chip-av {
-  width: 26px; height: 26px; border-radius: 50%; overflow: hidden; background: var(--card-2);
-  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: var(--text);
+  width: 22px; height: 22px; border-radius: 50%; overflow: hidden; background: var(--card-2);
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: var(--text);
 }
 
 /* Navigation période */
