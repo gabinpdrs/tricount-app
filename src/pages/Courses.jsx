@@ -20,7 +20,7 @@ export default function Courses() {
 
   async function charger() {
     setChargement(true)
-    const selection = 'id, nom, quantite, achete, ajoute_par, achete_par, portee, categorie, ajouteur:ajoute_par(prenom), acheteur:achete_par(prenom), article_preneurs(user_id, preneur:user_id(prenom))'
+    const selection = 'id, nom, quantite, achete, ajoute_par, achete_par, portee, categorie, ajouteur:ajoute_par(prenom), acheteur:achete_par(prenom), article_preneurs(user_id, preneur:user_id(prenom, equipe))'
     let req = supabase.from('articles').select(selection)
       .eq('portee', vueActive).eq('categorie', categorie).order('created_at', { ascending: true })
     if (vueActive === 'perso') req = req.eq('ajoute_par', session.user.id)
@@ -128,6 +128,7 @@ export default function Courses() {
           articles.map((a) => {
             const preneurs = a.article_preneurs || []
             const jePrends = preneurs.some((p) => p.user_id === session.user.id)
+            const famillesPreneurs = [...new Set(preneurs.map((p) => p.preneur?.equipe || p.preneur?.prenom).filter(Boolean))]
             return (
               <div className={`article-ligne ${a.achete ? 'fait' : ''}`} key={a.id}>
                 <input type="checkbox" className="article-check" checked={a.achete} onChange={() => basculerAchete(a)} />
@@ -139,17 +140,17 @@ export default function Courses() {
                       <br />
                       <span className="muted" style={{ fontSize: 12 }}>
                         ajouté par {a.ajouteur?.prenom ?? '?'}
-                        {preneurs.length > 0 && <> · 🛒 {preneurs.map((p) => p.preneur?.prenom).join(', ')} {preneurs.length > 1 ? "s'en occupent" : "s'en occupe"}</>}
+                        {famillesPreneurs.length > 0 && <> · 🛒 {famillesPreneurs.join(', ')} {famillesPreneurs.length > 1 ? "s'en occupent" : "s'en occupe"}</>}
                         {a.achete && a.acheteur && <> · ✅ coché par {a.acheteur.prenom}</>}
                       </span>
                     </>
                   )}
                 </span>
 
-                {vueActive === 'collectif' && !a.achete && (
+                {vueActive === 'collectif' && !a.achete && aListePerso && (
                   jePrends
-                    ? <button className="btn-pris actif" onClick={() => annulerPrise(a)}>✓ Moi</button>
-                    : (categorie === 'materiel' || preneurs.length === 0) && <button className="btn-pris" onClick={() => prendre(a)}>C'est moi</button>
+                    ? <button className="btn-pris actif" onClick={() => annulerPrise(a)}>✓ Notre famille</button>
+                    : (categorie === 'materiel' || preneurs.length === 0) && <button className="btn-pris" onClick={() => prendre(a)}>C'est nous</button>
                 )}
                 {vueActive === 'perso' && (
                   <button className="btn-pris" onClick={() => versCommune(a)}>→ Commune</button>
