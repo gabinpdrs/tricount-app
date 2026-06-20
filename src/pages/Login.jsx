@@ -36,18 +36,18 @@ export default function Login() {
       <div className="card">
         <h2>Connexion</h2>
         <form onSubmit={seConnecter}>
-          <label>Prénom (identifiant)</label>
-          <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Ex : Lucas" required />
+          <label>Nom de famille (identifiant)</label>
+          <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Ex : Poderos ou Pagnon" required />
 
           <label>Mot de passe</label>
           <input type="password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)}
-            placeholder="Première fois : Prénom + 1 (ex: Lucas1)" required />
+            placeholder="Première fois : Nom + 1 (ex: Poderos1)" required />
 
           {erreur && <p className="message-erreur">{erreur}</p>}
           <button type="submit" disabled={enCours}>{enCours ? 'Connexion...' : 'Se connecter'}</button>
         </form>
         <p className="muted" style={{ marginTop: 12 }}>
-          Première connexion : mot de passe = ton prénom suivi de 1 (ex : <strong>Lucas1</strong>).
+          Première connexion : mot de passe = ton nom de famille suivi de 1 (ex : <strong>Poderos1</strong>).
         </p>
       </div>
     </div>
