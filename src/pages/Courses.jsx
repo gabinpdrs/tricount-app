@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 export default function Courses() {
   const { session, profil } = useAuth()
   const aListePerso = !!profil?.a_liste_perso // seuls les enfants ont une liste perso
+  const maFamille = profil?.equipe || profil?.prenom
 
   const [categorie, setCategorie] = useState('alimentaire')
   const [vue, setVue] = useState('collectif')
@@ -65,7 +66,11 @@ export default function Courses() {
     await charger()
   }
   async function annulerPrise(a) {
-    await supabase.from('article_preneurs').delete().eq('article_id', a.id).eq('user_id', session.user.id)
+    // On retire la prise de TOUTE la famille (enfant + parent)
+    const ids = (a.article_preneurs || [])
+      .filter((p) => (p.preneur?.equipe || p.preneur?.prenom) === maFamille)
+      .map((p) => p.user_id)
+    if (ids.length) await supabase.from('article_preneurs').delete().eq('article_id', a.id).in('user_id', ids)
     await charger()
   }
 
@@ -129,7 +134,7 @@ export default function Courses() {
         ) : (
           articles.map((a) => {
             const preneurs = a.article_preneurs || []
-            const jePrends = preneurs.some((p) => p.user_id === session.user.id)
+            const jePrends = preneurs.some((p) => (p.preneur?.equipe || p.preneur?.prenom) === maFamille)
             const famillesPreneurs = [...new Set(preneurs.map((p) => p.preneur?.equipe || p.preneur?.prenom).filter(Boolean))]
             return (
               <div className={`article-ligne ${a.achete ? 'fait' : ''}`} key={a.id}>
