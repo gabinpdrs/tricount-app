@@ -149,7 +149,7 @@ export default function Courses() {
                   )}
                 </span>
 
-                {vueActive === 'collectif' && !a.achete && aListePerso && (
+                {vueActive === 'collectif' && !a.achete && (
                   jePrends
                     ? <button className="btn-pris actif" onClick={() => annulerPrise(a)}>✓ Notre famille</button>
                     : (categorie === 'materiel' || preneurs.length === 0) && <button className="btn-pris" onClick={() => prendre(a)}>C'est nous</button>
